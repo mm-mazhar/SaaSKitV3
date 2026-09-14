@@ -3,6 +3,7 @@
 import * as z from 'zod'
 import { OrganizationService } from '@/lib/services/organization-service'
 import { InvitationService } from '@/lib/services/invitation-service'
+import { WorkspaceAccessService } from '@/lib/services/workspace-access-service'
 import { protectedProcedure, adminProcedure, ownerProcedure } from '../procedures'
 import { ORPCError } from '../server'
 import { PRICING_PLANS, ROLES } from '@/lib/constants'
@@ -205,6 +206,76 @@ export const organizationRouter = {
     }),
 
   /**
+   * Get a member's workspace access, plus the full set of workspaces the CALLER
+   * is allowed to grant (an ADMIN can only grant workspaces they can see themselves).
+   */
+  getMemberWorkspaceAccess: adminProcedure
+    .input(z.object({ targetUserId: z.string() }))
+    .route({
+      method: 'GET',
+      path: '/org/member/workspace-access',
+      summary: 'Get member workspace access',
+      description: "Returns a member's current workspace access and what the caller may grant",
+    })
+    .handler(async ({ input, context }) => {
+      try {
+        return await WorkspaceAccessService.getManageableAccess(
+          context.orgId,
+          context.user.id,
+          input.targetUserId
+        )
+      } catch (error) {
+        if (error instanceof Error) {
+          if (error.message.includes('Forbidden')) {
+            throw new ORPCError('FORBIDDEN', { message: error.message })
+          }
+          if (error.message.includes('not found') || error.message.includes('Unauthorized')) {
+            throw new ORPCError('NOT_FOUND', { message: error.message })
+          }
+        }
+        throw error
+      }
+    }),
+
+  /**
+   * Replace a member's workspace access with exactly the given set.
+   * OWNER can manage ADMIN and MEMBER; ADMIN can only manage MEMBER, and only
+   * within workspaces the ADMIN themselves can access.
+   */
+  setMemberWorkspaceAccess: adminProcedure
+    .input(z.object({
+      targetUserId: z.string(),
+      workspaceIds: z.array(z.string()),
+    }))
+    .route({
+      method: 'PATCH',
+      path: '/org/member/workspace-access',
+      summary: 'Set member workspace access',
+      description: "Replaces a member's workspace access with the given set of workspace IDs",
+    })
+    .handler(async ({ input, context }) => {
+      try {
+        await WorkspaceAccessService.setMemberWorkspaceAccess(
+          context.orgId,
+          context.user.id,
+          input.targetUserId,
+          input.workspaceIds
+        )
+        return { success: true }
+      } catch (error) {
+        if (error instanceof Error) {
+          if (error.message.includes('Forbidden') || error.message.includes('only grant')) {
+            throw new ORPCError('FORBIDDEN', { message: error.message })
+          }
+          if (error.message.includes('not found') || error.message.includes('Unauthorized')) {
+            throw new ORPCError('NOT_FOUND', { message: error.message })
+          }
+        }
+        throw error
+      }
+    }),
+
+  /**
    * Invite a member to the organization
    * Enforces rate limit (1 minute) and pending invite limit
    */
@@ -212,6 +283,9 @@ export const organizationRouter = {
     .input(z.object({
       email: z.string().email(),
       role: z.enum([ROLES.ADMIN, ROLES.MEMBER]).default(ROLES.MEMBER),
+      // Workspaces the invited member will have access to once they accept.
+      // Omit to default to every workspace the inviter can themselves access.
+      workspaceIds: z.array(z.string()).optional(),
     }))
     .route({
       method: 'POST',
@@ -247,7 +321,8 @@ export const organizationRouter = {
           context.user.id,
           context.orgId,
           input.email,
-          input.role
+          input.role,
+          input.workspaceIds
         )
         console.log('✅ Invite created successfully:', invite.id)
 

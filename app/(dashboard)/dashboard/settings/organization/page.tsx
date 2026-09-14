@@ -2,6 +2,7 @@
 
 import { MemberRoleSelect } from '@/app/(dashboard)/_components/member-role-select'
 import { InviteMemberDialog } from '@/app/(dashboard)/_components/invite-member-dialog'
+import { WorkspaceAccessDialog } from '@/app/(dashboard)/_components/workspace-access-dialog'
 import { DeleteOrgButton } from '@/app/(dashboard)/_components/delete-org-button'
 import { createClient } from '@/app/lib/supabase/server'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -74,6 +75,9 @@ export default async function OrganizationSettingsPage() {
   const currentUserMembership = org.members.find((m: { userId: string }) => m.userId === user.id)
 
   const invites = await rpc.org.getInvites()
+  // Workspaces the CURRENT viewer can access -- used as the invite dialog's default
+  // selection (an inviter can never grant access to a workspace they can't see).
+  const invitableWorkspaces = await rpc.workspace.list() as { id: string; name: string; slug: string }[]
 
   const ownedOrganizations = organizations.filter((o: { members: { role: string }[] }) => o.members[0]?.role === 'OWNER')
   const transferTargets = ownedOrganizations
@@ -149,7 +153,7 @@ export default async function OrganizationSettingsPage() {
                   Manage who has access to this organization.
                 </CardDescription>
               </div>
-              <InviteMemberDialog orgId={org.id} />
+              <InviteMemberDialog orgId={org.id} workspaces={invitableWorkspaces} />
             </CardHeader>
             <CardContent>
               <div className='space-y-4'>
@@ -183,12 +187,29 @@ export default async function OrganizationSettingsPage() {
                         </div>
                       </div>
                     </div>
-                    <RemoveMemberButton
-                      targetUserId={member.userId}
-                      targetRole={member.role}
-                      currentUserId={user.id}
-                      currentUserRole={currentUserMembership?.role ?? 'MEMBER'}
-                    />
+                    <div className='flex items-center gap-1'>
+                      {(() => {
+                        const viewerRole = currentUserMembership?.role ?? 'MEMBER'
+                        const isSelf = member.userId === user.id
+                        const canManageAccess =
+                          !isSelf &&
+                          member.role !== 'OWNER' &&
+                          (viewerRole === 'OWNER' || (viewerRole === 'ADMIN' && member.role === 'MEMBER'))
+                        if (!canManageAccess) return null
+                        return (
+                          <WorkspaceAccessDialog
+                            targetUserId={member.userId}
+                            targetLabel={member.user?.name || member.user?.email || 'this member'}
+                          />
+                        )
+                      })()}
+                      <RemoveMemberButton
+                        targetUserId={member.userId}
+                        targetRole={member.role}
+                        currentUserId={user.id}
+                        currentUserRole={currentUserMembership?.role ?? 'MEMBER'}
+                      />
+                    </div>
                   </div>
                 ))}
               </div>

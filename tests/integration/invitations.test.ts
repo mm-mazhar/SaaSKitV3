@@ -4,6 +4,8 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { OrganizationService } from '@/lib/services/organization-service'
 import { InvitationService } from '@/lib/services/invitation-service'
 import { ROLES, LIMITS } from '@/lib/constants'
+import { WorkspaceService } from '@/lib/services/workspace-service'
+import { WorkspaceAccessService } from '@/lib/services/workspace-access-service'
 import { TestUtils, testDb } from './setup'
 
 describe('Organization Invitations', () => {
@@ -399,6 +401,128 @@ describe('Organization Invitations', () => {
         new Date(originalExpiry).getTime()
       )
       expect(reinvited.status).toBe('PENDING')
+    })
+  })
+
+  describe('Test 3.6: Workspace Access Granted Through Invites', () => {
+    async function createWorkspace(name: string) {
+      return await testDb.workspace.create({
+        data: {
+          name,
+          slug: TestUtils.generateUniqueSlug(name.toLowerCase().replace(/\s+/g, '-')),
+          organizationId,
+        },
+      })
+    }
+
+    it('defaults to granting every workspace the inviter can access when workspaceIds is omitted', async () => {
+      await setupOrganization()
+      const wsA = await createWorkspace('Workspace A')
+      const wsB = await createWorkspace('Workspace B')
+
+      // Owner has implicit ALL access, so an omitted workspaceIds should grant both.
+      const inviteeEmail = TestUtils.generateUniqueEmail('invitee')
+      const invitee = await TestUtils.createTestUser(inviteeEmail)
+      createdUserIds.push(invitee.id)
+
+      const invite = await InvitationService.createInvite(
+        ownerUserId,
+        organizationId,
+        inviteeEmail,
+        ROLES.MEMBER
+      )
+      expect(new Set(invite.workspaceIds)).toEqual(new Set([wsA.id, wsB.id]))
+
+      await InvitationService.acceptInvite(invite.token, invitee.id)
+
+      const workspaces = await WorkspaceService.getOrganizationWorkspaces(invitee.id, organizationId)
+      expect(new Set(workspaces.map((w) => w.id))).toEqual(new Set([wsA.id, wsB.id]))
+    })
+
+    it('respects an explicit workspaceIds selection, including an empty array', async () => {
+      await setupOrganization()
+      const wsA = await createWorkspace('Workspace A')
+      await createWorkspace('Workspace B')
+
+      const inviteeEmail = TestUtils.generateUniqueEmail('invitee')
+      const invitee = await TestUtils.createTestUser(inviteeEmail)
+      createdUserIds.push(invitee.id)
+
+      const invite = await InvitationService.createInvite(
+        ownerUserId,
+        organizationId,
+        inviteeEmail,
+        ROLES.MEMBER,
+        [wsA.id]
+      )
+      expect(invite.workspaceIds).toEqual([wsA.id])
+
+      await InvitationService.acceptInvite(invite.token, invitee.id)
+
+      const workspaces = await WorkspaceService.getOrganizationWorkspaces(invitee.id, organizationId)
+      expect(workspaces.map((w) => w.id)).toEqual([wsA.id])
+    })
+
+    it('grants nothing when the inviter explicitly passes an empty workspaceIds array', async () => {
+      await setupOrganization()
+      await createWorkspace('Workspace A')
+
+      const inviteeEmail = TestUtils.generateUniqueEmail('invitee')
+      const invitee = await TestUtils.createTestUser(inviteeEmail)
+      createdUserIds.push(invitee.id)
+
+      const invite = await InvitationService.createInvite(
+        ownerUserId,
+        organizationId,
+        inviteeEmail,
+        ROLES.MEMBER,
+        []
+      )
+      expect(invite.workspaceIds).toEqual([])
+
+      await InvitationService.acceptInvite(invite.token, invitee.id)
+
+      const workspaces = await WorkspaceService.getOrganizationWorkspaces(invitee.id, organizationId)
+      expect(workspaces).toHaveLength(0)
+    })
+
+    it("clamps requested workspaceIds to what the inviter can themselves access -- an admin can't grant a workspace they can't see", async () => {
+      await setupOrganization()
+      const wsA = await createWorkspace('Workspace A')
+      const wsB = await createWorkspace('Workspace B')
+
+      const adminEmail = TestUtils.generateUniqueEmail('admin')
+      const adminUser = await TestUtils.createTestUser(adminEmail)
+      createdUserIds.push(adminUser.id)
+      await testDb.organizationMember.create({
+        data: { organizationId, userId: adminUser.id, role: ROLES.ADMIN },
+      })
+      // Admin is only granted wsA -- wsB is invisible to them.
+      await WorkspaceAccessService.setMemberWorkspaceAccess(
+        organizationId,
+        ownerUserId,
+        adminUser.id,
+        [wsA.id]
+      )
+
+      const inviteeEmail = TestUtils.generateUniqueEmail('invitee')
+      const invitee = await TestUtils.createTestUser(inviteeEmail)
+      createdUserIds.push(invitee.id)
+
+      // Admin tries to invite with both workspaces -- only wsA should actually be granted.
+      const invite = await InvitationService.createInvite(
+        adminUser.id,
+        organizationId,
+        inviteeEmail,
+        ROLES.MEMBER,
+        [wsA.id, wsB.id]
+      )
+      expect(invite.workspaceIds).toEqual([wsA.id])
+
+      await InvitationService.acceptInvite(invite.token, invitee.id)
+
+      const workspaces = await WorkspaceService.getOrganizationWorkspaces(invitee.id, organizationId)
+      expect(workspaces.map((w) => w.id)).toEqual([wsA.id])
     })
   })
 })

@@ -90,7 +90,10 @@ model OrganizationMember {
   
   organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
+  // Explicit per-workspace access grants for this membership (OWNER ignores this: always full access)
+  workspaceAccess WorkspaceMember[]
+
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
@@ -105,12 +108,34 @@ model Workspace {
   organizationId String
   
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  
+
+  // Members explicitly granted access to this workspace (OWNER is implicit, not tracked here)
+  members        WorkspaceMember[]
+
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
   @@unique([organizationId, slug])
   @@index([organizationId])
+}
+
+// Join table controlling which organization members can see/use which workspaces.
+// A row here means "this member has access to this workspace". The OWNER role is
+// intentionally never represented here -- owners always have implicit access to
+// every workspace in their organization (enforced in application code).
+model WorkspaceMember {
+  id                    String   @id @default(cuid())
+  workspaceId           String
+  organizationMemberId  String
+
+  workspace             Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  organizationMember    OrganizationMember @relation(fields: [organizationMemberId], references: [id], onDelete: Cascade)
+
+  createdAt             DateTime @default(now())
+
+  @@unique([workspaceId, organizationMemberId])
+  @@index([organizationMemberId])
+  @@index([workspaceId])
 }
 
 model OrganizationInvite {
@@ -121,7 +146,11 @@ model OrganizationInvite {
   status         InviteStatus     @default(PENDING)
   token          String       @unique
   expiresAt      DateTime
-  
+
+  // Workspaces the invited member will be granted access to once they accept.
+  // Chosen by the inviter at invite time (defaults to every workspace the inviter can access).
+  workspaceIds   String[]     @default([])
+
   inviterId      String
   inviter        User         @relation(fields: [inviterId], references: [id])
   

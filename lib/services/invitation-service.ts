@@ -4,6 +4,7 @@ import prisma from '@/app/lib/db'
 import { randomBytes } from 'crypto'
 import { INVITE_EXPIRATION_MS, LIMITS, LOCAL_SITE_URL, OrganizationRole, PRODUCTION_URL, ROLES, SITE_URL, CHECK_DISPOSABLE_EMAILS } from '../constants'
 import { isDisposableEmail } from '../email-validator'
+import { WorkspaceAccessService } from './workspace-access-service'
 
 export class InvitationService {
   static resolveOrigin() {
@@ -38,7 +39,13 @@ export class InvitationService {
       return `/invite/${token}`
     }
   }
-  static async createInvite(inviterId: string, organizationId: string, email: string, role: OrganizationRole = ROLES.MEMBER) {
+  static async createInvite(
+    inviterId: string,
+    organizationId: string,
+    email: string,
+    role: OrganizationRole = ROLES.MEMBER,
+    workspaceIds?: string[]
+  ) {
     // 1. Check for disposable email
     if (CHECK_DISPOSABLE_EMAILS && isDisposableEmail(email)) {
       throw new Error('Disposable emails cannot be invited to organizations. Please use a permanent email address.')
@@ -70,7 +77,32 @@ export class InvitationService {
       throw new Error('User is already a member of this organization.')
     }
 
-    // 4. Create Invite
+    // 4. Resolve which workspaces this invite will grant access to.
+    // Defaults to every workspace the inviter can themselves access; an inviter can
+    // never grant access to a workspace they can't see. Passing an explicit array
+    // (including an empty one) overrides the default -- the inviter deliberately chose it.
+    const inviterMembership = await prisma.organizationMember.findUnique({
+      where: { organizationId_userId: { organizationId, userId: inviterId } },
+    })
+    if (!inviterMembership) {
+      throw new Error('Unauthorized: You are not a member of this organization.')
+    }
+
+    const inviterAccess = await WorkspaceAccessService.getAccessibleWorkspaceIds(
+      inviterMembership.id,
+      inviterMembership.role as OrganizationRole
+    )
+    const inviterAccessibleIds =
+      inviterAccess === 'ALL'
+        ? (await prisma.workspace.findMany({ where: { organizationId }, select: { id: true } })).map(
+            (w) => w.id
+          )
+        : inviterAccess
+
+    const requestedWorkspaceIds = workspaceIds !== undefined ? workspaceIds : inviterAccessibleIds
+    const grantedWorkspaceIds = requestedWorkspaceIds.filter((id) => inviterAccessibleIds.includes(id))
+
+    // 5. Create Invite
     const token = randomBytes(32).toString('hex')
     const expiresAt = new Date(Date.now() + INVITE_EXPIRATION_MS)
 
@@ -82,6 +114,7 @@ export class InvitationService {
         role,
         token,
         expiresAt,
+        workspaceIds: grantedWorkspaceIds,
       },
       include: { inviter: true, organization: true },
     })
@@ -192,6 +225,18 @@ export class InvitationService {
           role: invite.role,
         },
       })
+
+      // Grant the workspace access the inviter selected (OWNER invites don't exist,
+      // so this always applies to an ADMIN or MEMBER membership).
+      if (invite.workspaceIds.length > 0) {
+        await tx.workspaceMember.createMany({
+          data: invite.workspaceIds.map((workspaceId) => ({
+            workspaceId,
+            organizationMemberId: member.id,
+          })),
+          skipDuplicates: true,
+        })
+      }
 
       await tx.organizationInvite.update({
         where: { id: invite.id },

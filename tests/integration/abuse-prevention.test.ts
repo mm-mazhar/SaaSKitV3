@@ -1,7 +1,8 @@
 // tests/integration/abuse-prevention.test.ts
 
-import { CREDITS_FREE, LIMITS, ROLES } from '@/lib/constants'
+import { CREDITS_FREE, LIMITS, ROLES, WORKSPACE_LIMITS_BY_PLAN, PLAN_IDS } from '@/lib/constants'
 import { InvitationService } from '@/lib/services/invitation-service'
+import { WorkspaceService } from '@/lib/services/workspace-service'
 import { OrganizationService } from '@/lib/services/organization-service'
 import { afterEach, describe, expect, it } from 'vitest'
 import { TestUtils, testDb } from './setup'
@@ -333,34 +334,43 @@ describe('Abuse Prevention & Guardrails', () => {
       ).rejects.toThrow(`Limit reached: Organization can have max ${LIMITS.MAX_MEMBERS_PER_ORGANIZATION} members.`)
     })
 
-    it('should enforce workspace limit per organization', async () => {
-      await setupUserWithPrimaryOrg()
+    it('should enforce workspace limit per organization based on pricing plan', async () => {
+      const { owner } = await setupUserWithPrimaryOrg()
 
-      // Create workspaces up to the limit
-      const workspaces = []
-      for (let i = 0; i < LIMITS.MAX_WORKSPACES_PER_ORGANIZATION; i++) {
-        const workspace = await testDb.workspace.create({
-          data: {
-            name: `Workspace ${i + 1}`,
-            slug: TestUtils.generateUniqueSlug(`workspace-${i + 1}`),
-            organizationId: primaryOrgId,
-          },
-        })
-        workspaces.push(workspace)
+      // A freshly created organization has no subscription, so it resolves to
+      // the free plan's workspace limit.
+      const freeLimit = WORKSPACE_LIMITS_BY_PLAN[PLAN_IDS.free]
+
+      // Create workspaces up to the free plan's limit via the real service,
+      // so the limit-enforcement code path itself is exercised.
+      for (let i = 0; i < freeLimit; i++) {
+        await WorkspaceService.createWorkspace(
+          owner.id,
+          primaryOrgId,
+          `Workspace ${i + 1}`,
+          TestUtils.generateUniqueSlug(`workspace-${i + 1}`)
+        )
       }
 
-      // Verify we have the maximum number of workspaces
       const workspaceCount = await testDb.workspace.count({
         where: { organizationId: primaryOrgId },
       })
-      expect(workspaceCount).toBe(LIMITS.MAX_WORKSPACES_PER_ORGANIZATION)
+      expect(workspaceCount).toBe(freeLimit)
 
-      // Attempting to create one more should fail at the application level
-      // (This would be enforced in the workspace creation service/router)
+      // Attempting to create one more should be rejected by the service.
+      await expect(
+        WorkspaceService.createWorkspace(
+          owner.id,
+          primaryOrgId,
+          'One Too Many',
+          TestUtils.generateUniqueSlug('one-too-many')
+        )
+      ).rejects.toThrow(`Limit reached: Your plan allows up to ${freeLimit} workspace${freeLimit === 1 ? '' : 's'}.`)
+
       const workspaceCountAfter = await testDb.workspace.count({
         where: { organizationId: primaryOrgId },
       })
-      expect(workspaceCountAfter).toBe(LIMITS.MAX_WORKSPACES_PER_ORGANIZATION)
+      expect(workspaceCountAfter).toBe(freeLimit)
 
       // Cleanup workspaces
       await testDb.workspace.deleteMany({

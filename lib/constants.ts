@@ -213,10 +213,40 @@ const RESOLVED_MAX_ORGS =
 
 export const LIMITS = {
   MAX_ORGANIZATIONS_PER_USER: RESOLVED_MAX_ORGS,
-  MAX_WORKSPACES_PER_ORGANIZATION: 5,
   MAX_MEMBERS_PER_ORGANIZATION: 5,
   MAX_PENDING_INVITES_PER_ORG: 3,
 } as const
+
+// ✅ Workspace limits, per pricing plan
+// Change ONLY the numbers below to adjust how many workspaces an organization on a
+// given plan may create. Everything that enforces this limit (WorkspaceService) reads
+// from this map, so there is nothing else to touch.
+export const WORKSPACE_LIMITS_BY_PLAN: Record<PlanId, number> = {
+  [PLAN_IDS.free]: 1,
+  [PLAN_IDS.PLAN_A]: 2,
+  [PLAN_IDS.PLAN_B]: 5,
+  [PLAN_IDS.PLAN_C]: 10,
+  [PLAN_IDS.PLAN_D]: 25,
+}
+
+/**
+ * Resolves an organization's current PlanId from its subscription's Stripe price id.
+ * Falls back to the free plan when there is no active subscription.
+ */
+export function resolvePlanId(stripePriceId?: string | null): PlanId {
+  if (!stripePriceId) return PLAN_IDS.free
+  const plan = PRICING_PLANS.find(
+    (p) => p.stripePriceId === stripePriceId || p.id === stripePriceId
+  )
+  return plan?.id ?? PLAN_IDS.free
+}
+
+/**
+ * Returns the max number of workspaces an organization on the given plan may have.
+ */
+export function getWorkspaceLimit(planId: PlanId): number {
+  return WORKSPACE_LIMITS_BY_PLAN[planId] ?? WORKSPACE_LIMITS_BY_PLAN[PLAN_IDS.free]
+}
 
 export const ROLES = {
   OWNER: 'OWNER',

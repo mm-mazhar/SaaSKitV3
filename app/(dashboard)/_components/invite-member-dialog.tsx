@@ -29,13 +29,28 @@ import { useToast } from '@/components/ToastProvider'
 import { orpc } from '@/lib/orpc/client'
 import { useORPCMutation } from '@/hooks/use-orpc-mutation'
 
- 
-export function InviteMemberDialog({ orgId }: { orgId: string }) {
+type InviteWorkspaceOption = { id: string; name: string; slug: string }
+
+export function InviteMemberDialog({
+  orgId,
+  workspaces = [],
+}: {
+  orgId: string
+  workspaces?: InviteWorkspaceOption[]
+}) {
   const [open, setOpen] = React.useState(false)
   const [email, setEmail] = React.useState('')
   const [role, setRole] = React.useState<'ADMIN' | 'MEMBER'>('MEMBER')
+  // Default: every workspace the inviter can see is checked. They can uncheck
+  // any they want to keep the new member out of.
+  const [workspaceIds, setWorkspaceIds] = React.useState<string[]>(() => workspaces.map((w) => w.id))
   const router = useRouter()
   const { show } = useToast()
+
+  // Keep the checkbox list in sync if the available workspaces change (e.g. after router.refresh()).
+  React.useEffect(() => {
+    setWorkspaceIds(workspaces.map((w) => w.id))
+  }, [workspaces])
 
   const { mutate, isPending, error } = useORPCMutation(() =>
     orpc.org.inviteMember.mutationOptions({
@@ -45,6 +60,7 @@ export function InviteMemberDialog({ orgId }: { orgId: string }) {
         setOpen(false)
         setEmail('')
         setRole('MEMBER')
+        setWorkspaceIds(workspaces.map((w) => w.id))
         router.refresh()
       },
       onError: (err: { code: string; message: string }) => {
@@ -66,10 +82,14 @@ export function InviteMemberDialog({ orgId }: { orgId: string }) {
     })
   )
 
+  function toggleWorkspace(id: string, checked: boolean) {
+    setWorkspaceIds((prev) => (checked ? [...new Set([...prev, id])] : prev.filter((w) => w !== id)))
+  }
+
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    console.log('🚀 Submitting invite form with:', { email, role })
-    mutate({ email, role })
+    console.log('🚀 Submitting invite form with:', { email, role, workspaceIds })
+    mutate({ email, role, workspaceIds })
   }
 
   return (
@@ -117,6 +137,32 @@ export function InviteMemberDialog({ orgId }: { orgId: string }) {
                 </SelectContent>
               </Select>
             </div>
+            {workspaces.length > 0 && (
+              <div className='grid grid-cols-4 items-start gap-4'>
+                <Label className='text-right pt-1'>Workspaces</Label>
+                <div className='col-span-3 space-y-2'>
+                  <p className='text-xs text-muted-foreground'>
+                    Choose which workspaces this member can access. All are selected by default.
+                  </p>
+                  <div className='max-h-40 space-y-1.5 overflow-y-auto rounded-md border border-input p-2'>
+                    {workspaces.map((workspace) => (
+                      <label
+                        key={workspace.id}
+                        className='flex items-center gap-2 text-sm cursor-pointer select-none'
+                      >
+                        <input
+                          type='checkbox'
+                          className='h-3.5 w-3.5 rounded border-input accent-primary'
+                          checked={workspaceIds.includes(workspace.id)}
+                          onChange={(e) => toggleWorkspace(workspace.id, e.target.checked)}
+                        />
+                        {workspace.name}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
             {Boolean(error) && (
               <p className='text-red-500 text-sm'>
                 {error instanceof Error ? error.message : 'An error occurred'}
