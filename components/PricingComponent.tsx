@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { ShineBorder } from '@/components/ui/shine-border'
-import { formatPrice, PLAN_IDS, PRICING_PLANS, type PlanId, type PricingPlan } from '@/lib/constants'
+import { formatPrice, PLAN_IDS, PURCHASABLE_PLANS, type PlanId, type PricingPlan } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 
@@ -36,12 +36,29 @@ export default function PricingComponent({
   void proExhausted
   const isBillingFreeState =
     mode === 'billing' && (currentPlanId === null || currentPlanId === PLAN_IDS.free)
-  const visiblePlans = PRICING_PLANS.filter((p) => p.id !== PLAN_IDS.free)
+  // PURCHASABLE_PLANS (not PRICING_PLANS) so a disabled Partner tier
+  // (see PARTNER_PLAN_ENABLED in lib/constants.ts) never shows up as
+  // something a customer can newly subscribe to, on either surface this
+  // component renders (marketing pricing table or the billing page).
+  const visiblePlans = PURCHASABLE_PLANS.filter((p) => p.id !== PLAN_IDS.free)
+
+  // Column count tracks how many plans are actually on offer, so pulling
+  // Partner out (PARTNER_PLAN_ENABLED off) shrinks the grid to 3 evenly
+  // spaced cards instead of leaving a lg:grid-cols-4 track with an empty
+  // fourth slot -- see lib/constants.ts for the flag itself.
+  const responsiveColsClass =
+    visiblePlans.length >= 4
+      ? 'md:grid-cols-2 lg:grid-cols-4'
+      : visiblePlans.length === 3
+        ? 'md:grid-cols-3 lg:grid-cols-3'
+        : visiblePlans.length === 2
+          ? 'md:grid-cols-2 lg:grid-cols-2'
+          : 'md:grid-cols-1 lg:grid-cols-1'
 
   const gridColsClass =
     mode === 'marketing'
-      ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 justify-items-center justify-center'
-      : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 justify-items-stretch'
+      ? `grid grid-cols-1 ${responsiveColsClass} gap-2 justify-items-center justify-center`
+      : `grid grid-cols-1 ${responsiveColsClass} gap-2 justify-items-stretch`
 
   const headerPaddingClass =
     mode === 'billing' ? 'p-2' : isBillingFreeState ? 'p-6' : 'p-4'

@@ -1,6 +1,6 @@
 // app/(dashboard)/dashboard/settings/page.tsx
 
-import { createClient } from '@/app/lib/supabase/server'
+import { getCachedUser } from '@/app/lib/supabase/server'
 import { UserSettingsForm } from '@/app/(dashboard)/_components/user-settings-form'
 import {
   Card,
@@ -15,8 +15,7 @@ import { redirect } from 'next/navigation'
 
 export default async function SettingPage() {
   noStore()
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getCachedUser()
 
   if (!user) {
     return redirect('/get-started')

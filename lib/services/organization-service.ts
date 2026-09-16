@@ -274,7 +274,12 @@ export class OrganizationService {
             userId,
           },
         },
-        data: { role: newRole },
+        // Demoting to MEMBER also revokes billing access -- canManageBilling
+        // only ever means anything for an ADMIN (see billingAdminProcedure),
+        // so leaving it set on a former admin would be a dormant landmine:
+        // promoting them back to ADMIN later would silently restore billing
+        // access the owner never re-granted.
+        data: { role: newRole, ...(newRole === ROLES.MEMBER ? { canManageBilling: false } : {}) },
         include: { user: { select: { email: true } } },
       })
 

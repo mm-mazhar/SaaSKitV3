@@ -85,7 +85,7 @@ export default async function OrganizationsPage(props: {
                       </Link>
                     </TableCell>
                     <TableCell className="md:px-16">
-                      {org.subscription?.status === 'active' ? (
+                      {org.isOnPaidPlan ? (
                         <Badge className="w-[90px] justify-center text-xs font-medium bg-primary/10 text-primary border border-primary/20">
                           Pro
                         </Badge>

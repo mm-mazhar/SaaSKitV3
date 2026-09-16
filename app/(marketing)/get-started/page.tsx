@@ -3,7 +3,7 @@
 import { EmailAuthForm } from '@/app/(marketing)/_components/auth/EmailAuthForm'
 import { GoogleAuthButton } from '@/app/(marketing)/_components/auth/GoogleAuthButton'
 import SiteLogo from '@/app/(marketing)/_components/Sitelogo'
-import { createClient } from '@/app/lib/supabase/server'
+import { getCachedUser } from '@/app/lib/supabase/server'
 import { ShineBorder } from '@/components/ui/shine-border'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
@@ -15,10 +15,9 @@ export default async function LoginPage({
 }) {
   const { next } = await searchParams
   console.log('[GetStarted Page] Received next param:', next)
-  const supabase = await createClient()
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getCachedUser()
 
   if (user) {
     redirect(next ?? '/dashboard')

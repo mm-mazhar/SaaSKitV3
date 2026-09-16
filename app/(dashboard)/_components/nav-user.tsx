@@ -33,7 +33,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { CREDIT_REMINDER_THRESHOLD, PLAN_IDS, type PlanId } from '@/lib/constants'
+import { CREDIT_REMINDER_THRESHOLD, PLAN_IDS, PRICING_PLANS, PURCHASABLE_PLANS, type PlanId } from '@/lib/constants'
 import Link from 'next/link'
 import * as React from 'react'
 
@@ -152,33 +152,29 @@ export function NavUser({
                   className='flex items-center text-sm gap-2'
                 >
                   <Sparkles />
-                  {currentPlanId === PLAN_IDS.PLAN_A
-                    ? (
+                  {(() => {
+                    // PURCHASABLE_PLANS, not a hardcoded [free, A, B, C, D] --
+                    // when Partner is disabled (PARTNER_PLAN_ENABLED in
+                    // lib/constants.ts) it must drop off the end of this list
+                    // too, so an Agency org sees itself as already on the top
+                    // plan instead of being offered an "Upgrade to Partner"
+                    // that no longer exists to buy.
+                    const planOrder = PURCHASABLE_PLANS.map((p) => p.id)
+                    const titleFor = (id: PlanId) => PRICING_PLANS.find((p) => p.id === id)?.title ?? id
+                    const currentIndex = planOrder.findIndex((id) => id === currentPlanId)
+                    const currentTitle = currentIndex >= 0 ? titleFor(planOrder[currentIndex]) : 'Free'
+                    const nextPlanId = planOrder[Math.min(currentIndex + 1, planOrder.length - 1)]
+                    const isTopPlan = currentIndex >= 0 && currentIndex === planOrder.length - 1
+
+                    return isTopPlan ? (
+                      <span className="text-primary font-semibold">{currentTitle}</span>
+                    ) : (
                       <>
-                        <span className="text-primary font-semibold">Basic Report,</span>Upgrade to <span className="text-primary font-semibold">Pro Plan</span>
+                        <span className="text-primary font-semibold">{currentTitle},</span>Upgrade to{' '}
+                        <span className="text-primary font-semibold">{titleFor(nextPlanId)}</span>
                       </>
                     )
-                    : currentPlanId === PLAN_IDS.PLAN_B
-                    ? (
-                      <>
-                        <span className="text-primary font-semibold">Pro Plan,</span>Upgrade to <span className="text-primary font-semibold">Dealer Core</span>
-                      </>
-                    )
-                    : currentPlanId === PLAN_IDS.PLAN_C
-                    ? (
-                      <>
-                        <span className="text-primary font-semibold">Dealer Core,</span>Upgrade to <span className="text-primary font-semibold">Dealer Plus</span>
-                      </>
-                    )
-                    : currentPlanId === PLAN_IDS.PLAN_D
-                    ? (
-                      <span className="text-primary font-semibold">Dealer Plus</span>
-                    )
-                    : (
-                      <>
-                        Free, Upgrade to <span className="text-primary font-semibold">Pro Plan</span>
-                      </>
-                    )}
+                  })()}
                 </Link>
               </DropdownMenuItem>
               )}

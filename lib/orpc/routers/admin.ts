@@ -2,7 +2,7 @@
 
 import * as z from 'zod'
 import { superAdminProcedure } from '../procedures'
-import { PRICING_PLANS, PLAN_IDS } from '@/lib/constants'
+import { PRICING_PLANS, PLAN_IDS, resolveEffectivePlanId } from '@/lib/constants'
 
 /**
  * Admin Router - Super Admin functionality for system-wide management
@@ -213,6 +213,10 @@ export const adminRouter = {
           subscription: org.subscription 
             ? { planId: org.subscription.planId, status: org.subscription.status }
             : null,
+          // Accounts for one-time (non-recurring) plan purchases, which never
+          // create a Subscription row -- see resolveEffectivePlanId. Without
+          // this, a legitimate Starter purchaser shows as Free here too.
+          isOnPaidPlan: resolveEffectivePlanId(org.subscription?.planId, org.oneTimePlanId) !== PLAN_IDS.free,
         })),
         total,
         page,
@@ -324,6 +328,9 @@ export const adminRouter = {
               createdAt: org.subscription.createdAt,
             }
           : null,
+        // Accounts for one-time (non-recurring) plan purchases, which never
+        // create a Subscription row -- see resolveEffectivePlanId.
+        isOnPaidPlan: resolveEffectivePlanId(org.subscription?.planId, org.oneTimePlanId) !== PLAN_IDS.free,
         pendingInvites: org.invites.length,
         invoices,
       }

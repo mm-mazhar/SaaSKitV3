@@ -2,16 +2,15 @@
  
 
 import { getData } from '@/app/lib/db'
-import { createClient } from '@/app/lib/supabase/server'
+import { getCachedUser } from '@/app/lib/supabase/server'
 // import { HeroHeader } from '@/components/header'
 // import  HeroSection from '@/components/hero-section'
 import HeroSection from '@/app/(marketing)/_components/hero-section'
 
 export default async function Home() {
-  const supabase = await createClient()
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getCachedUser()
 
   // Get user data from database if logged in
   const data = user ? await getData(user.id) : null

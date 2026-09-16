@@ -284,8 +284,21 @@ describe('CRON Jobs & Automated Alerts', () => {
         }
       }
 
-      expect(mockSendRenewalReminderEmail).toHaveBeenCalledTimes(1)
-      expect(mockSendRenewalReminderEmail).toHaveBeenCalledWith(
+      // This test runs against a shared, live dev database (not an isolated
+      // per-test schema), and the query above is intentionally unscoped --
+      // it mirrors the real /api/cron/notify endpoint, which has to look
+      // across every organization. That means a real subscription someone
+      // is manually testing against this same project (e.g. a Starter-plan
+      // purchase made while poking at checkout) can legitimately have a
+      // currentPeriodEnd inside this test's 3-day window too, and the mock
+      // will be called for it as well as for this test's own org. Asserting
+      // a bare total call count is therefore flaky by construction; filter
+      // to the call(s) for THIS test's org before asserting.
+      const callsForThisOrg = mockSendRenewalReminderEmail.mock.calls.filter(
+        ([arg]) => arg?.orgName === primaryOrg.name
+      )
+      expect(callsForThisOrg).toHaveLength(1)
+      expect(callsForThisOrg[0][0]).toEqual(
         expect.objectContaining({
           to: testUser.email,
           orgName: primaryOrg.name,

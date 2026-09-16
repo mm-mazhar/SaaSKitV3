@@ -1,7 +1,7 @@
 // app/lib/email.ts
 
-import { SITE_LOGO_PATH } from '@/app/(marketing)/_components/Sitelogo'
-import { APP_EMAIL, ENABLE_EMAILS, INVITE_EXPIRATION_MS, NEXT_PUBLIC_SITE_NAME } from '@/lib/constants'
+// import { SITE_LOGO_PATH } from '@/app/(marketing)/_components/Sitelogo'
+import { APP_EMAIL, ENABLE_EMAILS, INVITE_EXPIRATION_MS, NEXT_PUBLIC_SITE_NAME, LOGO_PATH } from '@/lib/constants'
 import fs from 'node:fs'
 import path from 'node:path'
 import { Resend, type CreateEmailOptions } from 'resend'
@@ -30,16 +30,16 @@ function getEmailContext(fromOverride?: string) {
   
   if (origin) {
     try {
-      logoUrl = new URL(SITE_LOGO_PATH, origin).href
+      logoUrl = new URL(LOGO_PATH, origin).href
     } catch (error) {
-      console.error('Failed to construct logo URL:', error, { SITE_LOGO_PATH, origin })
+      console.error('Failed to construct logo URL:', error, { LOGO_PATH, origin })
       logoUrl = ''
     }
   }
   
   if (isLocal && logoUrl) {
     try {
-      const filePath = path.join(process.cwd(), 'public', SITE_LOGO_PATH.replace(/^\//, ''))
+      const filePath = path.join(process.cwd(), 'public', LOGO_PATH.replace(/^\//, ''))
       const buf = fs.readFileSync(filePath)
       logoUrl = `data:image/png;base64,${buf.toString('base64')}`
     } catch {
@@ -63,9 +63,9 @@ function formatCurrency(amountInSmallestUnit: number, currency: string) {
 
 function getHeaderHtml(ctx: { logoUrl: string }) {
   return `
-    <div style="display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid #eaeaea">
-      ${ctx.logoUrl ? `<img src="${ctx.logoUrl}" width="40" height="40" alt="" style="border-radius:8px;display:block;object-fit:contain"/>` : ''}
-      <div style="font-size:18px;font-weight:700;color:#000">${NEXT_PUBLIC_SITE_NAME}</div>
+    <div style="display:flex;align-items:center;gap:24px;padding:16px 20px;border-bottom:1px solid #eaeaea">
+      ${ctx.logoUrl ? `<img src="${ctx.logoUrl}" width="40" height="40" alt="" style="border-radius:8px;display:block;object-fit:contain;flex-shrink:0"/>` : ''}
+      <div style="font-size:18px;font-weight:700;color:#000;line-height:1.4;height:40px;display:flex;align-items:center">${NEXT_PUBLIC_SITE_NAME}</div>
     </div>
   `
 }
@@ -135,43 +135,28 @@ export async function sendPaymentConfirmationEmail(params: PaymentEmailParams) {
   
   const subject = `Payment Confirmation${params.orgName ? ` - ${params.orgName}` : ''}`
 
-  const html = `
-  <div style="background:#f6f9fc;padding:24px;font-family:sans-serif;">
+  const html = `<div style="background:#f6f9fc;padding:24px;font-family:sans-serif;">
     <div style="max-width:600px;margin:0 auto;background:#ffffff;border:1px solid #eaeaea;border-radius:10px;overflow:hidden;">
       ${getHeaderHtml(ctx)}
       <div style="padding:24px 20px;color:#374151;line-height:1.5">
         <p style="margin:0 0 16px 0">Dear ${displayName},</p>
         <p style="margin:0 0 24px 0">Thank you for your payment for <strong>${params.planTitle || NEXT_PUBLIC_SITE_NAME}</strong>${orgLabel}.</p>
-        
+
         <div style="margin-bottom:24px;padding:16px;border:1px solid #e5e7eb;border-radius:8px;background-color:#f9fafb">
           <div style="display:flex;justify-content:space-between;margin-bottom:8px">
             <span style="color:#6b7280">Amount:</span>
             <span style="font-weight:600;color:#111827">${amountText}</span>
           </div>
-          ${params.invoiceNumber ? `
-          <div style="display:flex;justify-content:space-between;margin-bottom:8px">
-            <span style="color:#6b7280">Invoice:</span>
-            <span style="font-weight:600;color:#111827">${params.invoiceNumber}</span>
-          </div>` : ''}
-          ${periodText ? `
-          <div style="display:flex;justify-content:space-between;margin-bottom:8px">
-            <span style="color:#6b7280">Period ends:</span>
-            <span style="font-weight:600;color:#111827">${periodText}</span>
-          </div>` : ''}
-          ${typeof params.finalCredits === 'number' ? `
-          <div style="display:flex;justify-content:space-between">
-            <span style="color:#6b7280">Current credits:</span>
-            <span style="font-weight:600;color:#111827">${params.finalCredits}</span>
-          </div>` : ''}
+          ${params.invoiceNumber ? `<div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="color:#6b7280">Invoice:</span><span style="font-weight:600;color:#111827">${params.invoiceNumber}</span></div>` : ''}
+          ${periodText ? `<div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="color:#6b7280">Period ends:</span><span style="font-weight:600;color:#111827">${periodText}</span></div>` : ''}
+          ${typeof params.finalCredits === 'number' ? `<div style="display:flex;justify-content:space-between"><span style="color:#6b7280">Current credits:</span><span style="font-weight:600;color:#111827">${params.finalCredits}</span></div>` : ''}
         </div>
 
-        <div style="margin-bottom:24px">
-          You can view your invoice or manage your subscription below:
-        </div>
+        <p style="margin:0 0 16px 0">You can view your invoice or manage your subscription below:</p>
 
-        <div style="display:flex;gap:12px;flex-wrap:wrap">
-          <a href="${invoiceUrl}" target="_blank" style="display:inline-block;background-color:#2563eb;color:#ffffff;font-weight:600;text-decoration:none;padding:12px 24px;border-radius:6px;font-size:14px;margin-top:16px;text-align:center;margin-right:12px">View Invoice</a>
-          <a href="${billingUrl}" target="_blank" style="display:inline-block;background-color:#2563eb;color:#ffffff;font-weight:600;text-decoration:none;padding:12px 24px;border-radius:6px;font-size:14px;margin-top:16px;text-align:center;">Manage Subscription</a>
+        <div>
+          <a href="${invoiceUrl}" target="_blank" style="display:inline-block;background-color:#2563eb;color:#ffffff;font-weight:600;text-decoration:none;padding:12px 24px;border-radius:6px;font-size:14px;margin-top:16px;margin-right:12px">View Invoice</a>
+          <a href="${billingUrl}" target="_blank" style="display:inline-block;background-color:#2563eb;color:#ffffff;font-weight:600;text-decoration:none;padding:12px 24px;border-radius:6px;font-size:14px;margin-top:16px">Manage Subscription</a>
         </div>
       </div>
       ${getFooterHtml(ctx)}
@@ -240,20 +225,17 @@ export async function sendCancellationEmail(params: CancellationParams) {
         ${getButtonHtml('Go to Billing', billingUrl)}
     `
 
-  const html = `
-  <div style="background:#f6f9fc;padding:24px;font-family:sans-serif;">
+  const html = `<div style="background:#f6f9fc;padding:24px;font-family:sans-serif;">
     <div style="max-width:600px;margin:0 auto;background:#ffffff;border:1px solid #eaeaea;border-radius:10px;overflow:hidden;">
       ${getHeaderHtml(ctx)}
       <div style="padding:24px 20px;color:#374151;line-height:1.5">
         <p style="margin:0 0 16px 0">Dear ${displayName},</p>
         <p style="margin:0 0 24px 0">${headline}</p>
-        
         <div style="margin-bottom:24px;padding:16px;border:1px solid #e5e7eb;border-radius:8px;background-color:#f9fafb">
            <div style="margin-bottom:8px">Plan: <strong>${params.planTitle || 'Subscription'}</strong>${orgLabel}</div>
            <div style="margin-bottom:8px;color:#4b5563">${detailLine}</div>
            ${creditsHtml}
         </div>
-
         ${reactivationHtml}
       </div>
       ${getFooterHtml(ctx)}
@@ -287,21 +269,16 @@ export async function sendRenewalReminderEmail(params: RenewalReminderParams) {
   const billingUrl = ctx.origin ? new URL('/dashboard/billing', ctx.origin).href : '#'
   const periodText = new Date(params.periodEnd * 1000).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
   
-  const html = `
-  <div style="background:#f6f9fc;padding:24px;font-family:sans-serif;">
+  const subject = `Upcoming Subscription Renewal${params.orgName ? ` - ${params.orgName}` : ''}`
+
+  const html = `<div style="background:#f6f9fc;padding:24px;font-family:sans-serif;">
     <div style="max-width:600px;margin:0 auto;background:#ffffff;border:1px solid #eaeaea;border-radius:10px;overflow:hidden;">
       ${getHeaderHtml(ctx)}
       <div style="padding:24px 20px;color:#374151;line-height:1.5">
         <p style="margin:0 0 16px 0">Dear ${displayName},</p>
-        <p>Your subscription for <strong>${params.planTitle}</strong>${orgLabel} will renew on <strong>${periodText}</strong>.</p>
-        
-        ${typeof params.creditsRemaining === 'number' ? `
-        <div style="margin-bottom:24px;padding:16px;border:1px solid #e5e7eb;border-radius:8px;background-color:#f9fafb">
-          You have <strong>${params.creditsRemaining}</strong> credits remaining.
-        </div>` : ''}
-
+        <p style="margin:0 0 24px 0">Your subscription for <strong>${params.planTitle}</strong>${orgLabel} will renew on <strong>${periodText}</strong>.</p>
+        ${typeof params.creditsRemaining === 'number' ? `<div style="margin-bottom:24px;padding:16px;border:1px solid #e5e7eb;border-radius:8px;background-color:#f9fafb">You have <strong>${params.creditsRemaining}</strong> credits remaining.</div>` : ''}
         <p style="margin:0 0 16px 0">To make changes to your plan, visit the billing portal.</p>
-        
         ${getButtonHtml('Manage Subscription', billingUrl)}
       </div>
       ${getFooterHtml(ctx)}
@@ -311,7 +288,7 @@ export async function sendRenewalReminderEmail(params: RenewalReminderParams) {
   return sendEmail({
     from: ctx.fromAddress,
     to: params.to,
-    subject: `Upcoming Subscription Renewal${params.orgName ? ` - ${params.orgName}` : ''}`,
+    subject,
     html,
     replyTo: process.env.SUPPORT_EMAIL || ctx.fromAddress,
   })
@@ -335,20 +312,18 @@ export async function sendLowCreditsEmail(params: LowCreditsEmailParams) {
   const orgLabel = params.orgName ? ` for <strong>${params.orgName}</strong>` : ''
   const billingUrl = ctx.origin ? new URL('/dashboard/billing', ctx.origin).href : ctx.origin
 
-  const html = `
-  <div style="background:#f6f9fc;padding:24px;font-family:sans-serif;">
+  const subject = `Low Credits Alert${params.orgName ? ` - ${params.orgName}` : ''}`
+
+  const html = `<div style="background:#f6f9fc;padding:24px;font-family:sans-serif;">
     <div style="max-width:600px;margin:0 auto;background:#ffffff;border:1px solid #eaeaea;border-radius:10px;overflow:hidden;">
       ${getHeaderHtml(ctx)}
       <div style="padding:24px 20px;color:#374151;line-height:1.5">
         <p style="margin:0 0 8px 0">Dear ${displayName},</p>
         <p style="margin:0 0 12px 0">Your credits${orgLabel} are running low.</p>
-        
         <div style="margin-bottom:24px;padding:16px;border:1px solid #fecdd3;border-radius:8px;background-color:#fff1f2">
           <div style="font-weight:bold;color:#be123c;font-size:16px">Current balance: ${params.creditsRemaining} credits</div>
         </div>
-
         <p style="margin:0 0 16px 0">Top up credits or upgrade your plan to continue uninterrupted.</p>
-        
         ${getButtonHtml('Subscribe', billingUrl)}
       </div>
       ${getFooterHtml(ctx)}
@@ -358,7 +333,7 @@ export async function sendLowCreditsEmail(params: LowCreditsEmailParams) {
   return sendEmail({
     from: ctx.fromAddress,
     to: params.to,
-    subject: `Low Credits Alert${params.orgName ? ` - ${params.orgName}` : ''}`,
+    subject,
     html,
     replyTo: process.env.SUPPORT_EMAIL || ctx.fromAddress,
   })
@@ -385,23 +360,21 @@ export async function sendInviteEmail(params: InviteEmailParams) {
   const inviterLine = params.inviterName ? `<p style="margin:0 0 16px 0">Invited by <strong>${params.inviterName}</strong></p>` : ''
   const expiresHours = Math.max(1, Math.round(INVITE_EXPIRATION_MS / (60 * 60 * 1000)))
   
-  const html = `
-  <div style="background:#f6f9fc;padding:24px;font-family:sans-serif;">
+  const subject = `Invitation to join ${params.organizationName || NEXT_PUBLIC_SITE_NAME}`
+
+  const html = `<div style="background:#f6f9fc;padding:24px;font-family:sans-serif;">
     <div style="max-width:600px;margin:0 auto;background:#ffffff;border:1px solid #eaeaea;border-radius:10px;overflow:hidden;">
       ${getHeaderHtml(ctx)}
       <div style="padding:24px 20px;color:#374151;line-height:1.5">
         <p style="margin:0 0 12px 0">You have been invited to join <strong>${params.organizationName || 'an organization'}</strong>.</p>
         ${inviterLine}
-        
         <div style="margin-bottom:24px;padding:16px;border:1px solid #e5e7eb;border-radius:8px;background-color:#f9fafb;text-align:center">
           ${roleLine}
           <div style="color:#6b7280;font-size:13px">Link expires in ${expiresHours} hours</div>
         </div>
-
         <div style="text-align:center">
           ${getButtonHtml('Accept Invitation', params.inviteLink)}
         </div>
-        
         <div style="margin-top:24px;padding-top:24px;border-top:1px solid #f3f4f6;font-size:12px;color:#6b7280;word-break:break-all">
           If the button doesn't work, copy and paste this link into your browser:<br/>
           <a href="${params.inviteLink}" style="color:#2563eb;text-decoration:none">${params.inviteLink}</a>
@@ -414,7 +387,7 @@ export async function sendInviteEmail(params: InviteEmailParams) {
   return sendEmail({
     from: ctx.fromAddress,
     to: params.to,
-    subject: `Invitation to join ${params.organizationName || NEXT_PUBLIC_SITE_NAME}`,
+    subject,
     html,
     replyTo: process.env.SUPPORT_EMAIL || ctx.fromAddress,
   })

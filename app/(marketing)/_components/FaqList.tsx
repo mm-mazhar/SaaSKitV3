@@ -13,102 +13,102 @@ interface FaqItem {
   id: string
   question: string
   answer: string
-  category: 'general' | 'reports' | 'data' | 'account'
+  category: 'general' | 'billing' | 'teams' | 'security'
 }
 
 const faqItems: FaqItem[] = [
   {
     id: '1',
-    question: 'What does Auto VIN Scout check?',
+    question: 'What is this SaaS kit, exactly?',
     answer:
-      'Auto VIN Scout combines VIN decoding, recall context, listing behavior, market pricing signals, and flood exposure indicators to help you spot risk before you commit to a used car.',
+      'A production-ready Next.js starter for multi-tenant SaaS products: organizations, workspaces, role-based access control, Stripe billing, and a type-safe API layer, already wired together so you can focus on your actual product.',
     category: 'general',
   },
   {
     id: '2',
-    question: 'Is this a replacement for a mechanic inspection?',
+    question: 'Do I need to be an expert to get started?',
     answer:
-      'No. It is a decision-support layer, not a physical inspection. The goal is to help you decide which cars deserve deeper inspection and which questions to ask before you spend more time or money.',
+      'No. If you are comfortable with Next.js, Prisma, and Tailwind, you can be productive within a day. The multi-tenancy and billing plumbing is done for you.',
     category: 'general',
   },
   {
     id: '3',
-    question: 'Who is this built for?',
+    question: 'What is a "workspace" versus an "organization"?',
     answer:
-      'It is built for used-car buyers, remote shoppers, families, brokers, and small dealers who need a faster way to screen listings and focus on the vehicles worth verifying.',
+      'An organization is your account/tenant boundary — the thing a user signs up into. A workspace lives inside an organization and is where the actual work happens; an organization can have multiple workspaces, scoped by its pricing plan.',
     category: 'general',
   },
   {
     id: '4',
-    question: 'What is included in the initial VIN review?',
+    question: 'How does role-based access control work?',
     answer:
-      'The initial review focuses on the decoded vehicle identity, key factory specs, and model-level recall context so you can quickly confirm that the listing matches the VIN.',
-    category: 'reports',
+      'Every organization member has a role — Owner, Admin, or Member. Owners and Admins can also grant or restrict access to specific workspaces per member, so a teammate only sees the workspaces they were given.',
+    category: 'teams',
   },
   {
     id: '5',
-    question: 'What do I get in the full report?',
+    question: 'Can I control which workspaces a teammate can see?',
     answer:
-      'The full report adds deeper scoring, market timeline context, pricing signals, flood exposure indicators, and buyer guidance that turns the findings into inspection and negotiation prompts.',
-    category: 'reports',
+      'Yes. When you invite someone, you choose which workspaces to grant them. Owners can adjust any member’s access later; admins can adjust access for members they manage.',
+    category: 'teams',
   },
   {
     id: '6',
-    question: 'How should I use the report before contacting a seller?',
+    question: 'How are workspace limits enforced across plans?',
     answer:
-      'Start with the risk summary, then review the report drivers and buyer guidance. That gives you a short list of items to confirm with the seller and a sharper checklist for a mechanic or third-party inspection.',
-    category: 'reports',
+      'Each pricing plan defines a maximum number of workspaces per organization. The limit is enforced centrally, so upgrading a plan is the only thing you need to change to raise it.',
+    category: 'billing',
   },
   {
     id: '7',
-    question: 'Where does the vehicle data come from?',
+    question: 'Is billing handled for me?',
     answer:
-      'The platform currently uses public and marketplace-accessible sources, including NHTSA decoding and recall data, listing history signals, and environmental risk inputs such as FEMA-related hazard context.',
-    category: 'data',
+      'Yes. Stripe Checkout, subscriptions, and webhooks are already integrated. Plans map to credits and workspace limits automatically, so you don’t have to hand-wire billing state.',
+    category: 'billing',
   },
   {
     id: '8',
-    question: 'Does a high flood score mean the car was definitely flooded?',
+    question: 'What happens if I downgrade my plan?',
     answer:
-      'No. Flood scoring is directional, not absolute. It helps identify vehicles that deserve closer scrutiny based on geography, timing, and related signals, but it does not claim to prove a title event by itself.',
-    category: 'data',
+      'Your workspace limit updates to match the new plan. Existing workspaces beyond the new limit remain accessible, but creating new ones is blocked until you’re back under the limit.',
+    category: 'billing',
   },
   {
     id: '9',
-    question: 'How should I read the market pricing signal?',
+    question: 'How is authentication handled?',
     answer:
-      'Treat it as context, not a guarantee. It helps show whether the asking price and listing behavior look typical or unusual compared with similar vehicles and local market movement.',
-    category: 'data',
+      'Auth runs on Supabase, with server-side guards that enforce organization membership and role requirements on every protected API call — not just in the UI.',
+    category: 'security',
   },
   {
     id: '10',
-    question: 'Do I need an account to start checking VINs?',
+    question: 'Is the API type-safe end to end?',
     answer:
-      'You can begin with the initial experience quickly, but creating an account is the best way to save reports, manage credits, and come back to the vehicles you are comparing.',
-    category: 'account',
+      'Yes. The API layer is built with oRPC, so request and response types are shared between the server and the client automatically — no manually kept-in-sync API contracts.',
+    category: 'security',
   },
   {
     id: '11',
-    question: 'Can I use this for multiple vehicles while shopping?',
+    question: 'Can I customize the pricing plans and limits?',
     answer:
-      'Yes. It is designed for comparison shopping. Many buyers use it to narrow a long shortlist into the few cars worth inspecting or negotiating on.',
-    category: 'account',
+      'Yes. Pricing plans, credit amounts, and workspace limits per plan all live in one constants file, so changing them doesn’t require touching business logic.',
+    category: 'billing',
   },
   {
     id: '12',
-    question: 'Are more data sources coming?',
+    question: 'What database and ORM does this use?',
     answer:
-      'Yes. The roadmap includes broader verification sources and stronger ownership-history coverage so the report can move beyond public and marketplace-accessible signals over time.',
-    category: 'data',
+      'PostgreSQL via Prisma, with hand-reviewed migrations rather than auto-generated ones for anything touching production data — including renames and access-control changes.',
+    category: 'general',
   },
 ]
 
 const categories = [
   { id: 'all', label: 'All' },
   { id: 'general', label: 'General' },
-  { id: 'reports', label: 'Reports' },
-  { id: 'data', label: 'Data Sources' },
-  { id: 'account', label: 'Account' },
+  { id: 'teams', label: 'Teams & Access' },
+  { id: 'billing', label: 'Billing' },
+  { id: 'security', label: 'Security' },
 ]
 
 export function FaqList() {

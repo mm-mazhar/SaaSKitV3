@@ -67,6 +67,12 @@ model Organization {
   credits                      Int       @default(0)
   creditsReminderThresholdSent Boolean   @default(false)
   lastFreeRefillAt             DateTime  @default(now())
+  // Tracks a one-time (non-recurring) plan purchase, e.g. Starter, which is
+  // sold via a one-time Stripe Checkout payment and therefore never creates a
+  // Subscription row. Set by the Stripe webhook when a one-time payment for a
+  // paid plan succeeds. Independent of `subscription` -- an org can have
+  // either, both (e.g. later upgrading to a recurring plan), or neither.
+  oneTimePlanId                 String?
 
   subscription Subscription?
 
@@ -87,6 +93,12 @@ model OrganizationMember {
   organizationId String
   userId         String
   role           OrganizationRole @default(MEMBER)
+  // Owner-granted permission for an ADMIN to buy/change subscriptions and
+  // manage billing (billingRouter's createSubscription/renewSubscription/
+  // createCustomerPortal). Irrelevant for OWNER (always full access) and
+  // MEMBER (billing is admin-tier-and-up regardless of this flag). Only the
+  // OWNER can set this -- see organization.ts's setMemberBillingAccess.
+  canManageBilling Boolean        @default(false)
   
   organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -143,6 +155,9 @@ model OrganizationInvite {
   email          String
   organizationId String
   role           OrganizationRole @default(MEMBER)
+  // Carries the OWNER's canManageBilling grant through to acceptance, when
+  // the invited role is ADMIN -- see OrganizationMember.canManageBilling.
+  canManageBilling Boolean        @default(false)
   status         InviteStatus     @default(PENDING)
   token          String       @unique
   expiresAt      DateTime

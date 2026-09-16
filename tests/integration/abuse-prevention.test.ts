@@ -30,6 +30,24 @@ describe('Abuse Prevention & Guardrails', () => {
     return { owner, primaryOrg }
   }
 
+  // Invites require a paid plan (see InvitationService.createInvite); tests that
+  // exercise invite behavior beyond the plan gate itself opt into a paid plan
+  // explicitly, since setupUserWithPrimaryOrg intentionally leaves the org on the
+  // Free plan for the workspace-limit test elsewhere in this file.
+  async function givePaidPlan(organizationId: string) {
+    await testDb.subscription.create({
+      data: {
+        stripeSubscriptionId: `test-sub-${organizationId}`,
+        interval: 'month',
+        status: 'active',
+        planId: PLAN_IDS.PLAN_A,
+        currentPeriodStart: Math.floor(Date.now() / 1000),
+        currentPeriodEnd: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+        organizationId,
+      },
+    })
+  }
+
   async function setupSecondaryOrg() {
     // Create secondary organization (should get isPrimary: false and 0 credits)
     const secondaryOrg = await OrganizationService.createOrganization(
@@ -164,6 +182,7 @@ describe('Abuse Prevention & Guardrails', () => {
   describe('Test 4.3: Invite Spamming', () => {
     it('should enforce rate limit on invitations', async () => {
       await setupUserWithPrimaryOrg()
+      await givePaidPlan(primaryOrgId)
 
       const email1 = TestUtils.generateUniqueEmail('test1')
       const email2 = TestUtils.generateUniqueEmail('test2')
@@ -198,6 +217,7 @@ describe('Abuse Prevention & Guardrails', () => {
 
     it('should enforce pending invite limit per organization', async () => {
       await setupUserWithPrimaryOrg()
+      await givePaidPlan(primaryOrgId)
 
       // Create invites up to the limit
       const invites = []
@@ -273,6 +293,7 @@ describe('Abuse Prevention & Guardrails', () => {
 
     it('should prevent inviting existing members', async () => {
       await setupUserWithPrimaryOrg()
+      await givePaidPlan(primaryOrgId)
 
       // Add a member to the organization
       const memberEmail = TestUtils.generateUniqueEmail('existing-member')

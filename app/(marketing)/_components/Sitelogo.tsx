@@ -3,8 +3,8 @@
 import { NEXT_PUBLIC_SITE_NAME } from '@/lib/constants'
 import Link from 'next/link'
 
-export const SITE_LOGO_DARK_PATH = '/logo-change-me.png'
-export const SITE_LOGO_LIGHT_PATH = '/logo-change-me.png'
+export const SITE_LOGO_DARK_PATH = '/logo-02.png'
+export const SITE_LOGO_LIGHT_PATH = '/logo-02.png'
 export const SITE_LOGO_PATH = SITE_LOGO_DARK_PATH
 
 const SiteLogo = () => {

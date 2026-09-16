@@ -14,6 +14,7 @@ interface ContextDependencies {
   getUser: () => Promise<{ user: User | null; error: Error | null }>
   getOrgIdCookie: () => Promise<string | null>
   getMembership: (orgId: string, userId: string) => Promise<{ role: string } | null>
+  getFallbackMembership: (userId: string) => Promise<{ organizationId: string; role: string } | null>
   db: unknown
 }
 
@@ -46,18 +47,31 @@ async function createContextWithDeps(deps: ContextDependencies): Promise<ORPCCon
 
   const orgId = await deps.getOrgIdCookie()
 
-  if (!orgId) {
+  let effectiveOrgId: string | null = null
+  let role: string | null = null
+
+  if (orgId) {
+    const membership = await deps.getMembership(orgId, user.id)
+    if (membership) {
+      effectiveOrgId = orgId
+      role = membership.role
+    }
+  }
+
+  if (!effectiveOrgId) {
+    const fallback = await deps.getFallbackMembership(user.id)
+    if (fallback) {
+      effectiveOrgId = fallback.organizationId
+      role = fallback.role
+    }
+  }
+
+  if (!effectiveOrgId || !role) {
     return context
   }
 
-  const membership = await deps.getMembership(orgId, user.id)
-
-  if (!membership) {
-    return context
-  }
-
-  context.orgId = orgId
-  context.role = membership.role as OrganizationRole
+  context.orgId = effectiveOrgId
+  context.role = role as OrganizationRole
 
   return context
 }
@@ -93,6 +107,7 @@ describe('Context Generator Properties', () => {
             getUser: async () => ({ user, error: null }),
             getOrgIdCookie: async () => null,
             getMembership: async () => null,
+            getFallbackMembership: async () => null,
             db: mockDb,
           }
 
@@ -118,6 +133,7 @@ describe('Context Generator Properties', () => {
               getUser: async () => authResult,
               getOrgIdCookie: async () => null,
               getMembership: async () => null,
+              getFallbackMembership: async () => null,
               db: mockDb,
             }
 
@@ -149,6 +165,7 @@ describe('Context Generator Properties', () => {
               getUser: async () => ({ user, error: null }),
               getOrgIdCookie: async () => orgId,
               getMembership: async () => ({ role }),
+              getFallbackMembership: async () => null,
               db: mockDb,
             }
 
@@ -168,6 +185,7 @@ describe('Context Generator Properties', () => {
             getUser: async () => ({ user, error: null }),
             getOrgIdCookie: async () => null,
             getMembership: async () => ({ role: ROLES.MEMBER }),
+            getFallbackMembership: async () => null,
             db: mockDb,
           }
 
@@ -198,6 +216,7 @@ describe('Context Generator Properties', () => {
               getUser: async () => ({ user, error: null }),
               getOrgIdCookie: async () => orgId,
               getMembership: async () => ({ role }),
+              getFallbackMembership: async () => null,
               db: mockDb,
             }
 
@@ -221,6 +240,7 @@ describe('Context Generator Properties', () => {
               getUser: async () => ({ user, error: null }),
               getOrgIdCookie: async () => orgId,
               getMembership: async () => null, // Not a member
+              getFallbackMembership: async () => null,
               db: mockDb,
             }
 
@@ -241,12 +261,124 @@ describe('Context Generator Properties', () => {
             getUser: async () => ({ user: null, error: null }),
             getOrgIdCookie: async () => orgId,
             getMembership: async () => ({ role }),
+            getFallbackMembership: async () => null,
             db: mockDb,
           }
 
           const context = await createContextWithDeps(deps)
           
           expect(context.user).toBeNull()
+          expect(context.orgId).toBeNull()
+          expect(context.role).toBeNull()
+        }),
+        { numRuns: 100 }
+      )
+    })
+  })
+
+  /**
+   * Property 4: Fallback Organization Resolution
+   * Regression coverage for a real bug: a Server Component's own defensive
+   * "pick another org if the cookie is stale" logic can silently fail to
+   * persist the corrected cookie (Next.js only allows writing cookies from a
+   * Server Action or Route Handler, not a plain render), leaving the oRPC
+   * context to re-read the same bad cookie on every org-scoped call. When
+   * the cookie is missing entirely, or points at an org the user is no
+   * longer an active member of, the context SHALL fall back to another
+   * organization the user actually belongs to, rather than leaving orgId and
+   * role null for a user who does have a usable organization.
+   */
+  describe('Property 4: Fallback Organization Resolution', () => {
+    it('falls back to another membership when no cookie is set', async () => {
+      await fc.assert(
+        fc.asyncProperty(
+          userArbitrary,
+          fc.uuid(),
+          roleArbitrary,
+          async (user, fallbackOrgId, role) => {
+            const deps: ContextDependencies = {
+              getUser: async () => ({ user, error: null }),
+              getOrgIdCookie: async () => null,
+              getMembership: async () => null,
+              getFallbackMembership: async () => ({ organizationId: fallbackOrgId, role }),
+              db: mockDb,
+            }
+
+            const context = await createContextWithDeps(deps)
+
+            expect(context.orgId).toBe(fallbackOrgId)
+            expect(context.role).toBe(role)
+          }
+        ),
+        { numRuns: 100 }
+      )
+    })
+
+    it('falls back to another membership when the cookie points at an org the user is not an active member of', async () => {
+      await fc.assert(
+        fc.asyncProperty(
+          userArbitrary,
+          fc.uuid(), // stale/invalid cookie orgId
+          fc.uuid(), // fallback orgId
+          roleArbitrary,
+          async (user, staleOrgId, fallbackOrgId, role) => {
+            const deps: ContextDependencies = {
+              getUser: async () => ({ user, error: null }),
+              getOrgIdCookie: async () => staleOrgId,
+              getMembership: async () => null, // stale cookie no longer validates
+              getFallbackMembership: async () => ({ organizationId: fallbackOrgId, role }),
+              db: mockDb,
+            }
+
+            const context = await createContextWithDeps(deps)
+
+            expect(context.orgId).toBe(fallbackOrgId)
+            expect(context.orgId).not.toBe(staleOrgId)
+            expect(context.role).toBe(role)
+          }
+        ),
+        { numRuns: 100 }
+      )
+    })
+
+    it('never falls back when the cookie is already valid', async () => {
+      await fc.assert(
+        fc.asyncProperty(
+          userArbitrary,
+          fc.uuid(),
+          roleArbitrary,
+          fc.uuid(), // a fallback org that must NOT be used
+          async (user, orgId, role, fallbackOrgId) => {
+            const deps: ContextDependencies = {
+              getUser: async () => ({ user, error: null }),
+              getOrgIdCookie: async () => orgId,
+              getMembership: async () => ({ role }),
+              getFallbackMembership: async () => ({ organizationId: fallbackOrgId, role: ROLES.MEMBER }),
+              db: mockDb,
+            }
+
+            const context = await createContextWithDeps(deps)
+
+            expect(context.orgId).toBe(orgId)
+          }
+        ),
+        { numRuns: 100 }
+      )
+    })
+
+    it('leaves orgId and role null when the user belongs to no organization at all', async () => {
+      await fc.assert(
+        fc.asyncProperty(userArbitrary, async (user) => {
+          const deps: ContextDependencies = {
+            getUser: async () => ({ user, error: null }),
+            getOrgIdCookie: async () => null,
+            getMembership: async () => null,
+            getFallbackMembership: async () => null,
+            db: mockDb,
+          }
+
+          const context = await createContextWithDeps(deps)
+
           expect(context.orgId).toBeNull()
           expect(context.role).toBeNull()
         }),

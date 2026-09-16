@@ -3,7 +3,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { OrganizationService } from '@/lib/services/organization-service'
 import { InvitationService } from '@/lib/services/invitation-service'
-import { ROLES, LIMITS } from '@/lib/constants'
+import { ROLES, LIMITS, PLAN_IDS } from '@/lib/constants'
 import { WorkspaceService } from '@/lib/services/workspace-service'
 import { WorkspaceAccessService } from '@/lib/services/workspace-access-service'
 import { TestUtils, testDb } from './setup'
@@ -24,6 +24,21 @@ describe('Organization Invitations', () => {
       TestUtils.generateUniqueSlug('test-org')
     )
     organizationId = org.id
+
+    // Invites require a paid plan -- a Free-plan organization cannot invite
+    // members at all (see InvitationService.createInvite). Give the test org a
+    // paid plan so these tests exercise invite behavior, not the plan gate.
+    await testDb.subscription.create({
+      data: {
+        stripeSubscriptionId: `test-sub-${org.id}`,
+        interval: 'month',
+        status: 'active',
+        planId: PLAN_IDS.PLAN_A,
+        currentPeriodStart: Math.floor(Date.now() / 1000),
+        currentPeriodEnd: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+        organizationId: org.id,
+      },
+    })
 
     return { owner, org }
   }
@@ -118,6 +133,48 @@ describe('Organization Invitations', () => {
       const inviteLink = InvitationService.getInviteLink(invite.token)
       expect(inviteLink).toContain('/invite/')
       expect(inviteLink).toContain(invite.token)
+    })
+  })
+
+  describe('Test 3.1b: Plan Requirements', () => {
+    it('rejects invites from a Free-plan organization (no subscription)', async () => {
+      // Deliberately bypass setupOrganization() -- it now gives the org a paid
+      // plan by default -- so this org is genuinely on the Free plan.
+      const owner = await TestUtils.createTestUser(TestUtils.generateUniqueEmail('free-owner'))
+      createdUserIds.push(owner.id)
+      const org = await OrganizationService.createOrganization(
+        owner.id,
+        'Free Plan Org',
+        TestUtils.generateUniqueSlug('free-org')
+      )
+      organizationId = org.id
+
+      await expect(
+        InvitationService.createInvite(
+          owner.id,
+          org.id,
+          TestUtils.generateUniqueEmail('invitee'),
+          ROLES.MEMBER
+        )
+      ).rejects.toThrow('Limit reached: Free plan does not include team invites.')
+
+      // Verify nothing was created.
+      const invites = await InvitationService.getOrganizationInvites(org.id)
+      expect(invites).toHaveLength(0)
+    })
+
+    it('allows invites once the organization is on a paid plan', async () => {
+      // setupOrganization() gives the org a paid plan by default.
+      await setupOrganization()
+
+      const invite = await InvitationService.createInvite(
+        ownerUserId,
+        organizationId,
+        TestUtils.generateUniqueEmail('invitee'),
+        ROLES.MEMBER
+      )
+
+      expect(invite.status).toBe('PENDING')
     })
   })
 

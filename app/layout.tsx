@@ -1,13 +1,13 @@
 // app/layout.tsx
 
 import prisma from '@/app/lib/db'
-import { createClient } from '@/app/lib/supabase/server'
+import { getCachedUser } from '@/app/lib/supabase/server'
 import { JsonLd } from '@/components/JsonLd'
 import { ThemeProvider } from '@/components/theme-provider'
 import { ToastProvider } from '@/components/ToastProvider'
 import type { Metadata } from 'next'
 import { unstable_noStore as noStore } from 'next/cache'
-import { Inter } from 'next/font/google'
+import { Bricolage_Grotesque, Inter } from 'next/font/google'
 import Script from 'next/script'
 
 import './globals.css'
@@ -26,6 +26,10 @@ import {
 } from '@/lib/constants'
 
 const inter = Inter({ subsets: ['latin'] })
+const bricolage = Bricolage_Grotesque({
+  subsets: ['latin'],
+  variable: '--font-display',
+})
 const FAVICON_VERSION = '20260405'
 
 // const geistSans = Geist({
@@ -156,10 +160,9 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  const supabase = await createClient()
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getCachedUser()
 
   const data = await getData(user?.id as string)
 
@@ -168,7 +171,7 @@ export default async function RootLayout({
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </head>
-      <body className={`${inter.className} ${data?.colorScheme ?? DEFAULT_COLOR_SCHEME} scroll-smooth`}>
+      <body className={`${inter.className} ${bricolage.variable} ${data?.colorScheme ?? DEFAULT_COLOR_SCHEME} scroll-smooth`}>
         <Script id='theme-init' strategy='beforeInteractive'>
           {`(function(){try{var k='app-theme';var s=localStorage.getItem(k);var t=s?s:(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');var d=document.documentElement;d.classList.remove('light','dark');d.classList.add(t);}catch(e){}})();`}
         </Script>

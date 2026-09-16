@@ -1,10 +1,11 @@
 // app/(dashboard)/dashboard/settings/organization/page.tsx
 
 import { MemberRoleSelect } from '@/app/(dashboard)/_components/member-role-select'
+import { BillingAccessToggle } from '@/app/(dashboard)/_components/billing-access-toggle'
 import { InviteMemberDialog } from '@/app/(dashboard)/_components/invite-member-dialog'
 import { WorkspaceAccessDialog } from '@/app/(dashboard)/_components/workspace-access-dialog'
 import { DeleteOrgButton } from '@/app/(dashboard)/_components/delete-org-button'
-import { createClient } from '@/app/lib/supabase/server'
+import { getCachedUser } from '@/app/lib/supabase/server'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import {
@@ -27,11 +28,11 @@ import { redirect } from 'next/navigation'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 import { requireOrgRole } from '@/lib/auth/guards'
+import { PLAN_IDS, resolveEffectivePlanId } from '@/lib/constants'
 
 export default async function OrganizationSettingsPage() {
   noStore()
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getCachedUser()
 
   if (!user) {
     return redirect('/get-started')
@@ -62,7 +63,7 @@ export default async function OrganizationSettingsPage() {
     return redirect('/dashboard')
   }
 
-  const org = await rpc.org.getById({ id: effectiveOrgId })
+  const org = await rpc.org.getById({ id: effectiveOrgId, includeSubscription: true })
   
   if (!org) {
     return (
@@ -73,6 +74,12 @@ export default async function OrganizationSettingsPage() {
   }
 
   const currentUserMembership = org.members.find((m: { userId: string }) => m.userId === user.id)
+  // Free-plan organizations cannot invite team members -- mirrors the server-side
+  // gate in InvitationService.createInvite so the UI doesn't just fail silently.
+  const isFreePlan = resolveEffectivePlanId(
+    (org as { subscription?: { planId?: string | null } }).subscription?.planId,
+    (org as { oneTimePlanId?: string | null }).oneTimePlanId
+  ) === PLAN_IDS.free
 
   const invites = await rpc.org.getInvites()
   // Workspaces the CURRENT viewer can access -- used as the invite dialog's default
@@ -153,11 +160,16 @@ export default async function OrganizationSettingsPage() {
                   Manage who has access to this organization.
                 </CardDescription>
               </div>
-              <InviteMemberDialog orgId={org.id} workspaces={invitableWorkspaces} />
+              <InviteMemberDialog
+                orgId={org.id}
+                workspaces={invitableWorkspaces}
+                disabled={isFreePlan}
+                isOwner={currentUserMembership?.role === 'OWNER'}
+              />
             </CardHeader>
             <CardContent>
               <div className='space-y-4'>
-                {org.members.map((member: { id: string; userId: string; role: string; user?: { name?: string; email?: string } }) => (
+                {org.members.map((member: { id: string; userId: string; role: string; canManageBilling?: boolean; user?: { name?: string; email?: string } }) => (
                   <div
                     key={member.id}
                     className='flex items-center justify-between space-x-4'
@@ -176,7 +188,7 @@ export default async function OrganizationSettingsPage() {
                             {member.user.email}
                           </p>
                         )}
-                        <div className='mt-1'>
+                        <div className='mt-1 flex items-center gap-3'>
                           <MemberRoleSelect
                             memberId={member.userId}
                             initialRole={member.role}
@@ -184,6 +196,12 @@ export default async function OrganizationSettingsPage() {
                             currentUserRole={currentUserMembership?.role ?? 'MEMBER'}
                             orgId={org.id}
                           />
+                          {currentUserMembership?.role === 'OWNER' && member.role === 'ADMIN' && (
+                            <BillingAccessToggle
+                              targetUserId={member.userId}
+                              initialCanManageBilling={member.canManageBilling ?? false}
+                            />
+                          )}
                         </div>
                       </div>
                     </div>

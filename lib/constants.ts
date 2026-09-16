@@ -40,9 +40,9 @@ export function formatPrice(
 // ✅ SOCIALS AND SEO
 export const NEXT_PUBLIC_SITE_NAME = `SaaS Kit V3` as string
 export const APP_SLOGAN = `⚡ SaaS Kit -> Starter Template.` as string
-export const APP_DESCRIPTION = `SaaS Kit V3.` as string
+export const APP_DESCRIPTION = `Ship your SaaS in a weekend, not a quarter.` as string
 export const APP_DESCRIPTION_LONG =
-  `Non eiusmod elit ipsum ea cillum eiusmod dolor ipsum sunt veniam nisi aliqua et tempor..` as string
+  `Organizations, workspaces, roles, billing, and auth — wired up and production-ready, so you can start shipping your product on day one.` as string
 export const KEYWORDS_LST: string[] = [
   'Saas,Next.js',
   'TypeScript',
@@ -88,7 +88,7 @@ export const STRIPE_PRICE_ID_PLAN_B = (process.env.STRIPE_PRICE_ID_PLAN_B || '')
 export const STRIPE_PRICE_ID_PLAN_C = (process.env.STRIPE_PRICE_ID_PLAN_C || '') as string
 export const STRIPE_PRICE_ID_PLAN_D = (process.env.STRIPE_PRICE_ID_PLAN_D || '') as string
 
-// A new type definition for a pricing plan
+// ✅ Pricing Plan IDs
 export const PRICE_HEADING = `Flexible plans, no hidden complexity` as string
 export const PLAN_IDS = {
   free: 'free_plan_6bed8afe06ef1fcf',
@@ -98,7 +98,68 @@ export const PLAN_IDS = {
   PLAN_D: 'Partner_7f834c8687d31875',
 } as const
 
-export const CREDITS_FREE: number = 0
+// Workspace limits, per pricing plan
+// Change ONLY the numbers below to adjust how many workspaces an organization on a
+// given plan may create. Everything that enforces this limit (WorkspaceService) reads
+// from this map, so there is nothing else to touch.
+export const WORKSPACE_LIMITS_BY_PLAN: Record<PlanId, number> = {
+  [PLAN_IDS.free]: 1,
+  [PLAN_IDS.PLAN_A]: 2,
+  [PLAN_IDS.PLAN_B]: 5,
+  [PLAN_IDS.PLAN_C]: 10,
+  [PLAN_IDS.PLAN_D]: 25,
+}
+
+// Helper function to generate features with dynamic workspace count
+function getPlanFeatures(planId: PlanId): string[] {
+  const workspaceLimit = WORKSPACE_LIMITS_BY_PLAN[planId]
+  const workspaceText = workspaceLimit === 1 ? '1 workspace' : `${workspaceLimit} workspaces`
+
+  switch (planId) {
+    case PLAN_IDS.free:
+      return ['Create an account', workspaceText, 'Community support']
+
+    case PLAN_IDS.PLAN_A:
+      return [
+        workspaceText,
+        'Role-based access for your whole team',
+        'Stripe billing built in',
+        'Email support',
+      ]
+
+    case PLAN_IDS.PLAN_B:
+      return [
+        `Everything in Starter`,
+        `${workspaceText}`,
+        'Invite teammates with granular workspace access',
+        'Priority credit refills',
+        'Standard support SLA',
+      ]
+
+    case PLAN_IDS.PLAN_C:
+      return [
+        `Everything in Team`,
+        `${workspaceText}`,
+        'Manage multiple client organizations',
+        'Advanced audit and usage visibility',
+        'Priority support',
+      ]
+
+    case PLAN_IDS.PLAN_D:
+      return [
+        `Everything in Agency`,
+        `${workspaceText}`,
+        'Highest workspace and credit limits',
+        'Dedicated onboarding',
+        'Priority support with faster response times',
+      ]
+
+    default:
+      return []
+  }
+}
+
+export const CREDITS_FREE: number = 2
 export const CREDITS_PLAN_A: number = 3
 export const CREDITS_PLAN_B: number = 10
 export const CREDITS_PLAN_C: number = 100
@@ -124,72 +185,83 @@ export const PRICING_PLANS: PricingPlan[] = [
     title: 'Free',
     price: '0',
     priceSuffix: '',
-    description: 'Create an account to save your search history.',
+    description: 'Try it out, no credit card required.',
     credits: CREDITS_FREE,
-    features: ['Account Creation', 'Save Search History'],
+    features: getPlanFeatures(PLAN_IDS.free),
     stripePriceId: undefined,
   },
   {
     id: PLAN_IDS.PLAN_A,
-    title: 'Starter', // old -> Basic Report
+    title: 'Starter',
     price: '29.99',
-    priceSuffix: ' one-time',
-    description: `dolor officia proident eiusmod eiusmod. Credits: ${CREDITS_PLAN_A}`,
+    priceSuffix: ' PAYG',
+    description: `For solo builders getting started. ${CREDITS_PLAN_A} credits included.`,
     credits: CREDITS_PLAN_A,
-    features: [
-      'Nulla culpa aute duis officia qui in duis do occaecat.',
-      'Ut qui dolor esse dolor officia proident eiusmod eiusmod reprehenderit.',
-      'Qui sit nulla sunt ea.',
-      'Fugiat minim nostrud veniam mollit esse ipsum officia dolor esse eiusmod dolore dolor Lorem.',
-    ],
+    features: getPlanFeatures(PLAN_IDS.PLAN_A),
     stripePriceId: STRIPE_PRICE_ID_PLAN_A,
   },
   {
     id: PLAN_IDS.PLAN_B,
-    title: 'Team', // old -> Pro Plan
+    title: 'Team',
     price: '59.99',
     priceSuffix: '/mo',
-    description: `For power Users/flippers. Credits: ${CREDITS_PLAN_B}`,
+    description: `For small teams shipping together. ${CREDITS_PLAN_B} credits included.`,
     credits: CREDITS_PLAN_B,
-    features: [
-      'Nulla culpa aute duis officia qui in duis do occaecat.',
-      'Ut qui dolor esse dolor officia proident eiusmod eiusmod reprehenderit.',
-      'Qui sit nulla sunt ea.',
-      'Fugiat minim nostrud veniam mollit esse ipsum officia dolor esse eiusmod dolore dolor Lorem.',
-    ],
+    features: getPlanFeatures(PLAN_IDS.PLAN_B),
     stripePriceId: STRIPE_PRICE_ID_PLAN_B,
   },
   {
     id: PLAN_IDS.PLAN_C,
-    title: 'Agency', // old -> Dealer Core
+    title: 'Agency',
     price: '199.99',
     priceSuffix: '/mo',
-    description: `For small used car lots. Credits: ${CREDITS_PLAN_C}`,
+    description: `For growing agencies with multiple clients. ${CREDITS_PLAN_C} credits included.`,
     credits: CREDITS_PLAN_C,
-    features: [
-      'Nulla culpa aute duis officia qui in duis do occaecat.',
-      'Ut qui dolor esse dolor officia proident eiusmod eiusmod reprehenderit.',
-      'Qui sit nulla sunt ea.',
-      'Fugiat minim nostrud veniam mollit esse ipsum officia dolor esse eiusmod dolore dolor Lorem.',
-    ],
+    features: getPlanFeatures(PLAN_IDS.PLAN_C),
     stripePriceId: STRIPE_PRICE_ID_PLAN_C,
   },
   {
     id: PLAN_IDS.PLAN_D,
-    title: 'Partner', // old -> Dealer Plus
+    title: 'Partner',
     price: '499.99',
     priceSuffix: '/mo',
-    description: `dolor officia proident. Credits: ${CREDITS_PLAN_D}`,
+    description: `For partners running at scale. ${CREDITS_PLAN_D} credits included.`,
     credits: CREDITS_PLAN_D,
-    features: [
-      'Nulla culpa aute duis officia qui in duis do occaecat.',
-      'Ut qui dolor esse dolor officia proident eiusmod eiusmod reprehenderit.',
-      'Qui sit nulla sunt ea.',
-      'Fugiat minim nostrud veniam mollit esse ipsum officia dolor esse eiusmod dolore dolor Lorem.',
-    ],
+    features: getPlanFeatures(PLAN_IDS.PLAN_D),
     stripePriceId: STRIPE_PRICE_ID_PLAN_D,
   },
 ]
+
+// Per-project kill switch for the Partner tier. Flip this to false to pull
+// Partner out of anywhere a customer could newly subscribe to it (the
+// marketing pricing table, the dashboard billing/upgrade cards, and the
+// createSubscription API) for a SaaS instance that isn't offering it.
+//
+// Partner is deliberately left in PRICING_PLANS itself regardless of this
+// flag -- resolvePlanId, the Stripe webhook's credit-allocation lookup, and
+// the admin dashboard all need to keep resolving a plan for anyone who is
+// ALREADY subscribed to Partner from before this was turned off. Toggling
+// this flag only stops new purchases; it never touches an existing
+// subscriber's entitlements.
+export const PARTNER_PLAN_ENABLED = false
+
+/**
+ * Which plans a customer can currently pick to subscribe/upgrade to.
+ * Exported as a pure function (rather than only a derived constant) so it's
+ * unit-testable against both states of the flag without needing to reload
+ * the module -- see tests/unit/purchasable-plans.test.ts.
+ */
+export function getPurchasablePlans(
+  plans: PricingPlan[] = PRICING_PLANS,
+  partnerEnabled: boolean = PARTNER_PLAN_ENABLED
+): PricingPlan[] {
+  return plans.filter((p) => p.id !== PLAN_IDS.PLAN_D || partnerEnabled)
+}
+
+// The plans a customer can currently buy or upgrade to. Use this (not
+// PRICING_PLANS) anywhere a UI or API is offering a plan for *new* purchase;
+// keep using PRICING_PLANS for resolving a plan an org already has.
+export const PURCHASABLE_PLANS = getPurchasablePlans()
 
 export const RENEWAL_REMINDER_DAYS_BEFORE = 3
 export const CREDIT_REMINDER_THRESHOLD = 4
@@ -217,18 +289,6 @@ export const LIMITS = {
   MAX_PENDING_INVITES_PER_ORG: 3,
 } as const
 
-// ✅ Workspace limits, per pricing plan
-// Change ONLY the numbers below to adjust how many workspaces an organization on a
-// given plan may create. Everything that enforces this limit (WorkspaceService) reads
-// from this map, so there is nothing else to touch.
-export const WORKSPACE_LIMITS_BY_PLAN: Record<PlanId, number> = {
-  [PLAN_IDS.free]: 1,
-  [PLAN_IDS.PLAN_A]: 2,
-  [PLAN_IDS.PLAN_B]: 5,
-  [PLAN_IDS.PLAN_C]: 10,
-  [PLAN_IDS.PLAN_D]: 25,
-}
-
 /**
  * Resolves an organization's current PlanId from its subscription's Stripe price id.
  * Falls back to the free plan when there is no active subscription.
@@ -239,6 +299,31 @@ export function resolvePlanId(stripePriceId?: string | null): PlanId {
     (p) => p.stripePriceId === stripePriceId || p.id === stripePriceId
   )
   return plan?.id ?? PLAN_IDS.free
+}
+
+/**
+ * Resolves an organization's effective PlanId, accounting for plans sold as a
+ * one-time Stripe Checkout payment (e.g. Starter -- see billingRouter's
+ * `isOneTime` branch) in addition to recurring subscriptions.
+ *
+ * A one-time purchase never creates a Subscription row, so resolving strictly
+ * from `subscription.planId` (the old behavior) permanently misclassifies a
+ * legitimate one-time-plan purchaser as Free -- blocking plan-gated features
+ * (workspace limits, invites) even though they paid. This resolver checks the
+ * recurring subscription first and falls back to the organization's
+ * `oneTimePlanId` (set by the webhook when a one-time payment succeeds).
+ *
+ * Deliberately does NOT infer a plan from `credits > 0`: leftover free-tier
+ * credits or credits transferred in from a deleted organization are not
+ * evidence of a purchased plan.
+ */
+export function resolveEffectivePlanId(
+  subscriptionPlanId?: string | null,
+  oneTimePlanId?: string | null
+): PlanId {
+  const fromSubscription = resolvePlanId(subscriptionPlanId)
+  if (fromSubscription !== PLAN_IDS.free) return fromSubscription
+  return resolvePlanId(oneTimePlanId)
 }
 
 /**
@@ -268,39 +353,41 @@ export type Testimonial = {
 export const TESTIMONIALS: Testimonial[] = [
   {
     quote:
-      '“Eu ipsum magna esse sunt velit fugiat id deserunt laboris minim incididunt sunt nostrud reprehenderit.”',
+      '“We went from an empty repo to billing customers in a weekend. The org and workspace model saved us weeks of scaffolding.”',
     name: 'Marcus T.',
-    title: 'Used truck shopper',
+    title: 'Founder, indie SaaS',
   },
   {
     quote:
-      '“Enim qui amet ad Lorem qui fugiat aliquip do amet.”',
+      '“The role-based workspace access was exactly what we needed for client work — each client only sees their own space.”',
     name: 'Priya S.',
-    title: 'First-time buyer'
+    title: 'Agency owner',
   },
   {
     quote:
-      '“Occaecat laboris occaecat quis consectetur irure laboris enim ad non mollit voluptate esse incididunt consectetur.”',
+      '“Stripe billing, invites, and RBAC all wired together out of the box. We just changed the copy and shipped.”',
     name: 'Daniel R.',
-    title: 'Remote marketplace buyer',
+    title: 'CTO, early-stage startup',
   },
   {
     quote:
-      '“Enim qui amet ad Lorem qui fugiat aliquip do amet.”',
+      '“Clean Prisma schema, typed API layer, sensible defaults everywhere. This is what a starter kit should feel like.”',
     name: 'Jasmine L.',
-    title: 'Independent auto broker',
+    title: 'Full-stack engineer',
   },
   {
     quote:
-      '“”',
+      '“Our team was managing three client workspaces within the first day, each with different access levels.”',
     name: 'Kevin M.',
-    title: 'Family SUV shopper',
+    title: 'Product lead',
   },
   {
     quote:
-      '“t velit fugiat id deserunt laboris minim incididun”',
+      '“Saved us the multi-tenant auth headache entirely. We focused on our actual product from day one.”',
     name: 'Elena G.',
-    title: 'Budget-conscious buyer',
+    title: 'Solo developer',
   },
 ]
 
+
+export const LOGO_PATH = `${process.env.NEXT_PUBLIC_SUPABASE_URL || ''}/storage/v1/object/public/assets/logo-01.png`;

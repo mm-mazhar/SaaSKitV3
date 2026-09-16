@@ -9,20 +9,21 @@ import PricingComponent from '@/components/PricingComponent'
 import { Button } from '@/components/ui/button'
 import { ShineBorder } from '@/components/ui/shine-border'
 import {
-    Briefcase,
     Building2,
-    FlaskConical,
-    Lightbulb,
-    Microscope,
+    CreditCard,
+    Layers,
+    Lock,
     Rocket,
     ShieldCheck,
-    Wrench
+    UserPlus,
+    Users,
+    Zap,
 } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 
 import prisma from '@/app/lib/db'
-import { createClient } from '@/app/lib/supabase/server'
+import { getCachedUser } from '@/app/lib/supabase/server'
 import {
     APP_DESCRIPTION,
     APP_DESCRIPTION_LONG,
@@ -31,10 +32,10 @@ import {
     PLAN_IDS,
     PRICE_HEADING,
     PRICING_PLANS,
+    resolveEffectivePlanId,
     TESTIMONIALS,
     TESTIMONIAL_TICKER_ENABLED,
     type PlanId,
-    type PricingPlan,
 } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 
@@ -56,10 +57,9 @@ const transitionVariants = {
 // Card base styles that play nicely with GLASS_CARD constant from lib/constants.ts
 
 export default async function HeroSection() {
-  const supabase = await createClient()
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getCachedUser()
 
   // Get Organization Billing Data
   let orgBilling = null
@@ -77,22 +77,15 @@ export default async function HeroSection() {
   }
 
   const subStatus = orgBilling?.subscription?.status ?? null
-  const rawPlanId = orgBilling?.subscription?.planId ?? null
   const creditsUsed = orgBilling?.credits ?? 0
-  const currentPlanId: PlanId | null = (() => {
-    if (subStatus === 'active') {
-      if (!rawPlanId) return PLAN_IDS.free
-      if (rawPlanId === PLAN_IDS.free) return PLAN_IDS.free
-      const matched = PRICING_PLANS.find(
-        (p: PricingPlan) => p.stripePriceId === rawPlanId
-      )
-      return matched?.id ?? PLAN_IDS.free
-    }
-    if ((orgBilling?.credits ?? 0) > 0) {
-      return PLAN_IDS.PLAN_A
-    }
-    return null
-  })()
+  // Accounts for one-time (non-recurring) plan purchases like Starter, which
+  // never create a Subscription row -- see lib/constants.ts's
+  // resolveEffectivePlanId. Deliberately does not infer a plan from having
+  // leftover/transferred credits.
+  const currentPlanId: PlanId = resolveEffectivePlanId(
+    orgBilling?.subscription?.planId,
+    (orgBilling as { oneTimePlanId?: string | null } | null | undefined)?.oneTimePlanId
+  )
 
   const proCredits =
     PRICING_PLANS.find((p) => p.id === PLAN_IDS.PLAN_D)?.credits ?? 0
@@ -101,7 +94,6 @@ export default async function HeroSection() {
       ? creditsUsed >= proCredits
       : false
 
-  const glassCardBase = 'flex flex-col rounded-2xl p-5 text-left shadow-sm'
   const glassCardFlexBetween =
     'flex h-full flex-col justify-between rounded-2xl p-6 text-left shadow-sm'
   const alignedSurfaceWidth = MARKETING_SURFACE_MAX_WIDTH
@@ -118,8 +110,6 @@ export default async function HeroSection() {
           <div className='absolute left-0 top-0 h-320 w-60 -rotate-45 rounded-full bg-[radial-gradient(50%_50%_at_50%_50%,hsla(0,0%,85%,.06)_0,hsla(0,0%,45%,.02)_80%,transparent_100%)] [translate:5%_-50%]' />
           <div className='absolute left-0 top-0 h-320 w-60 -translate-y-87.5 -rotate-45 bg-[radial-gradient(50%_50%_at_50%_50%,hsla(0,0%,85%,.04)_0,hsla(0,0%,45%,.02)_80%,transparent_100%)]' />
         </div>
-
-        {/* Background image removed for cleaner glassmorphism effect */}
 
         <div
           aria-hidden
@@ -222,16 +212,16 @@ export default async function HeroSection() {
 
                 <div className='mx-auto mb-5 flex max-w-5xl flex-wrap items-center justify-center gap-3 text-xs font-medium text-muted-foreground'>
                   <div className='font-bold rounded-full border border-border/60 bg-background/70 px-3 py-2 backdrop-blur'>
-                    NHTSA decode
+                    Multi-tenant orgs
                   </div>
                   <div className='font-bold rounded-full border border-border/60 bg-background/70 px-3 py-2 backdrop-blur'>
-                    Recall context
+                    Role-based access
                   </div>
                   <div className='font-bold rounded-full border border-border/60 bg-background/70 px-3 py-2 backdrop-blur'>
-                    Market timeline
+                    Stripe billing
                   </div>
                   <div className='font-bold rounded-full border border-border/60 bg-background/70 px-3 py-2 backdrop-blur'>
-                    Flood exposure signals
+                    Type-safe API
                   </div>
                 </div>
 
@@ -239,35 +229,35 @@ export default async function HeroSection() {
                   <div className='hidden gap-4 md:grid md:grid-cols-2 xl:gap-6'>
                     <div className='pointer-events-none rounded-2xl border border-border/60 bg-background/78 p-4 shadow-lg shadow-black/10 backdrop-blur'>
                       <div className='flex items-center gap-3'>
-                        <ShieldCheck className='h-5 w-5 text-primary' />
+                        <Building2 className='h-5 w-5 text-primary' />
                         <div>
                           <div className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>
-                            Flood exposure
+                            New workspace
                           </div>
                           <div className='mt-1 text-sm font-semibold text-foreground'>
-                            Review recent storm history
+                            "Client Onboarding" created
                           </div>
                         </div>
                       </div>
                       <p className='mt-3 text-xs leading-5 text-muted-foreground'>
-                        Location and timing signals make this one worth a closer underbody inspection.
+                        Every organization gets its own workspaces, scoped to plan limits automatically.
                       </p>
                     </div>
 
                     <div className='pointer-events-none rounded-2xl border border-border/60 bg-background/78 p-4 shadow-lg shadow-black/10 backdrop-blur'>
                       <div className='flex items-center gap-3'>
-                        <Building2 className='h-5 w-5 text-primary' />
+                        <UserPlus className='h-5 w-5 text-primary' />
                         <div>
                           <div className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>
-                            Market movement
+                            Invite sent
                           </div>
                           <div className='mt-1 text-sm font-semibold text-foreground'>
-                            3 relists and a price drop
+                            Admin access · 2 workspaces
                           </div>
                         </div>
                       </div>
                       <p className='mt-3 text-xs leading-5 text-muted-foreground'>
-                        Listing behavior suggests the seller has been adjusting to find the right buyer.
+                        Grant teammates exactly the workspaces they need, nothing more.
                       </p>
                     </div>
                   </div>
@@ -277,13 +267,13 @@ export default async function HeroSection() {
                       <div className='flex items-center justify-between gap-4'>
                         <div>
                           <div className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>
-                            Buyer checklist
+                            Billing
                           </div>
                           <div className='mt-1 text-sm font-semibold text-foreground'>
-                            Ready before you call the seller
+                            Upgraded to Team plan
                           </div>
                         </div>
-                        <Wrench className='h-5 w-5 shrink-0 text-primary' />
+                        <CreditCard className='h-5 w-5 shrink-0 text-primary' />
                       </div>
                     </div>
                   </div>
@@ -315,251 +305,204 @@ export default async function HeroSection() {
             </AnimatedGroup>
           </PageSection>
 
-          {/* <PageSection className='pt-0 -mt-20 md:-mt-32 relative z-10 pb-8 md:pb-12'>
-            <div className='flex flex-wrap items-center justify-center gap-6 px-6 text-base text-muted-foreground'>
-              <span className='uppercase tracking-wide text-[0.8rem] font-semibold text-muted-foreground/85'>
-                Built on
-              </span>
-              <div className='flex flex-wrap items-center gap-4'>
-                <div className='rounded-full border border-border/60 bg-background/80 px-4 py-2'>
-                  <span className='text-[0.9rem] font-semibold text-foreground'>Next.js</span>
-                </div>
-                <div className='rounded-full border border-border/60 bg-background/80 px-4 py-2'>
-                  <span className='text-[0.9rem] font-semibold text-foreground'>Supabase</span>
-                </div>
-                <div className='rounded-full border border-border/60 bg-background/80 px-4 py-2'>
-                  <span className='text-[0.9rem] font-semibold text-foreground'>Prisma</span>
-                </div>
-                <div className='rounded-full border border-border/60 bg-background/80 px-4 py-2'>
-                  <span className='text-[0.9rem] font-semibold text-foreground'>oRPC</span>
-                </div>
-                <div className='rounded-full border border-border/60 bg-background/80 px-4 py-2'>
-                  <span className='text-[0.9rem] font-semibold text-foreground'>Stripe</span>
-                </div>
-              </div>
-            </div>
-          </PageSection> */}
-
-          {/* SECTION 1: Features */}
+          {/* SECTION 1: Features — Bento Grid */}
           <PageSection id='features' className='bg-background py-6 md:py-10 relative overflow-hidden'>
-            {/* Enhanced gradient backdrop for glassmorphism */}
-            <div 
-              aria-hidden 
+            <div
+              aria-hidden
               className='absolute inset-0 pointer-events-none opacity-40'
               style={{
-                background: 'radial-gradient(ellipse 100% 60% at 50% 40%, rgba(255,255,255,0.06), transparent 70%)'                
-              }}              
+                background: 'radial-gradient(ellipse 100% 60% at 50% 40%, rgba(255,255,255,0.06), transparent 70%)'
+              }}
             />
-            
+
             <div className='mx-auto max-w-3xl text-center relative z-10'>
               <h2 className='text-3xl font-bold tracking-tight md:text-4xl'>
-                NextJs SaaS Kit, Eu ipsum magna esse sunt velit fugiat id deserunt laboris minim incididunt sunt nostrud reprehenderit
+                Everything a real SaaS needs, already wired together
               </h2>
               <p className='mt-4 text-muted-foreground'>
-                Eu ipsum magna esse sunt velit fugiat id deserunt laboris minim incididunt sunt nostrud reprehenderit.
+                Multi-tenancy, access control, and billing are the parts every team rebuilds from scratch. Here they come standard.
               </p>
             </div>
 
-            <div className={cn('relative z-10 mx-auto mt-10 grid w-full gap-8 md:mt-12 md:grid-cols-2', alignedSurfaceWidth)}>
-              <div className={cn(glassCardBase, GLASS_CARD)}>
-                <div className='flex items-center gap-3'>
-                  <Rocket className='h-6 w-6 shrink-0 text-primary' />
-                  <h2 className='text-sm font-semibold tracking-tight'>
-                    Feature 1
-                  </h2>
+            <div
+              className={cn(
+                'relative z-10 mx-auto mt-10 grid w-full auto-rows-[minmax(160px,auto)] grid-cols-1 gap-5 sm:grid-cols-2 md:mt-12 lg:grid-cols-4',
+                alignedSurfaceWidth
+              )}
+            >
+              {/* Hero tile — Organizations & Workspaces */}
+              <div
+                className={cn(
+                  'relative flex flex-col justify-between overflow-hidden rounded-2xl p-6 shadow-sm sm:col-span-2 lg:col-span-2 lg:row-span-2',
+                  GLASS_CARD,
+                  'bg-primary/[0.06]'
+                )}
+              >
+                <div
+                  aria-hidden
+                  className='absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/15 blur-3xl'
+                />
+                <div className='relative'>
+                  <div className='flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10'>
+                    <Building2 className='h-5 w-5 text-primary' />
+                  </div>
+                  <h3 className='mt-4 text-lg font-semibold tracking-tight'>
+                    Multi-tenant by default
+                  </h3>
+                  <p className='mt-2 max-w-sm text-sm leading-6 text-muted-foreground'>
+                    Every user belongs to one or more organizations, and every organization can spin up
+                    workspaces scoped to its pricing plan. It's the multi-tenant foundation most teams spend
+                    weeks building — here from the first commit.
+                  </p>
                 </div>
-                <ul className='mt-3 list-disc space-y-2 pl-5 text-sm text-muted-foreground'>
-                  <li>Decode make, model, trim, engine, and core specs using NHTSA data.</li>
-                  <li>Show a quick risk teaser before a buyer spends money on a deeper report.</li>
-                </ul>
-            </div>
-
-
-              <div className={cn(glassCardBase, GLASS_CARD)}>
-                <div className='flex items-center gap-3'>
-                  <Building2 className='h-6 w-6 shrink-0 text-primary' />
-                  <h2 className='text-sm font-semibold tracking-tight'>
-                    Marketplace history that adds context
-                  </h2>
+                <div className='relative mt-6 flex flex-wrap gap-2 text-xs font-medium text-muted-foreground'>
+                  <span className='rounded-full border border-border/60 bg-background/70 px-3 py-1'>Organizations</span>
+                  <span className='rounded-full border border-border/60 bg-background/70 px-3 py-1'>Workspaces</span>
+                  <span className='rounded-full border border-border/60 bg-background/70 px-3 py-1'>Plan-based limits</span>
                 </div>
-                <ul className='mt-3 list-disc space-y-2 pl-5 text-sm text-muted-foreground'>
-                  <li>
-                    Track price changes, relists, and time-on-market across major listing sources.
-                  </li>
-                  <li>Spot asking prices that do not match local market behavior.</li>
-                </ul>
               </div>
 
-              <div className={cn(glassCardBase, GLASS_CARD)}>
+              {/* Role-based access control */}
+              <div className={cn('flex flex-col justify-between rounded-2xl p-6 shadow-sm sm:col-span-2 lg:col-span-2', GLASS_CARD)}>
                 <div className='flex items-center gap-3'>
-                  <ShieldCheck className='h-6 w-6 shrink-0 text-primary' />
-                  <h2 className='text-sm font-semibold tracking-tight'>
-                    Flood and recall exposure signals
-                  </h2>
+                  <div className='flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10'>
+                    <ShieldCheck className='h-5 w-5 text-primary' />
+                  </div>
+                  <h3 className='text-lg font-semibold tracking-tight'>
+                    Role-based access control
+                  </h3>
                 </div>
-                <ul className='mt-3 list-disc space-y-2 pl-5 text-sm text-muted-foreground'>
-                  <li>Blend FEMA hazard proximity with recent disaster data for exposure scoring.</li>
-                  <li>Surface model-level recall density so buyers know what to inspect first.</li>
-                </ul>
+                <p className='mt-3 text-sm leading-6 text-muted-foreground'>
+                  Owner, Admin, and Member roles out of the box — plus per-workspace access grants, so an
+                  admin can hand a teammate exactly the workspaces they need and nothing else.
+                </p>
               </div>
 
-              <div className={cn(glassCardBase, GLASS_CARD)}>
-                <div className='flex items-center gap-3'>
-                  <Wrench className='h-6 w-6 shrink-0 text-primary' />
-                  <h2 className='text-sm font-semibold tracking-tight'>
-                    Buyer guidance you can actually use
-                  </h2>
+              {/* Stripe billing */}
+              <div className={cn('flex flex-col justify-between rounded-2xl p-6 shadow-sm', GLASS_CARD)}>
+                <div className='flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10'>
+                  <CreditCard className='h-5 w-5 text-primary' />
                 </div>
-                <ul className='mt-3 list-disc space-y-2 pl-5 text-sm text-muted-foreground'>
-                  <li>Turn detected risks into inspection questions and seller negotiation prompts.</li>
-                  <li>Keep missing data visible so the report stays honest and trustworthy.</li>
-                </ul>
+                <div className='mt-4'>
+                  <h3 className='text-sm font-semibold tracking-tight'>Stripe billing built in</h3>
+                  <p className='mt-2 text-sm leading-6 text-muted-foreground'>
+                    Plans, credits, and subscription webhooks are already connected end to end.
+                  </p>
+                </div>
+              </div>
+
+              {/* Type-safe API */}
+              <div className={cn('flex flex-col justify-between rounded-2xl p-6 shadow-sm', GLASS_CARD)}>
+                <div className='flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10'>
+                  <Zap className='h-5 w-5 text-primary' />
+                </div>
+                <div className='mt-4'>
+                  <h3 className='text-sm font-semibold tracking-tight'>Type-safe API layer</h3>
+                  <p className='mt-2 text-sm leading-6 text-muted-foreground'>
+                    An oRPC router shares types between server and client, so the API and the UI never drift.
+                  </p>
+                </div>
+              </div>
+
+              {/* Auth & Guards */}
+              <div className={cn('flex flex-col justify-between rounded-2xl p-6 shadow-sm sm:col-span-2 lg:col-span-2', GLASS_CARD)}>
+                <div className='flex items-center gap-3'>
+                  <div className='flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10'>
+                    <Lock className='h-5 w-5 text-primary' />
+                  </div>
+                  <h3 className='text-sm font-semibold tracking-tight'>
+                    Auth, guards, and invitations
+                  </h3>
+                </div>
+                <p className='mt-3 text-sm leading-6 text-muted-foreground'>
+                  Supabase auth, org-scoped procedure guards, and an invite flow with email delivery — the
+                  boring-but-critical plumbing is done.
+                </p>
+              </div>
+
+              {/* Stack */}
+              <div className={cn('flex flex-col justify-between rounded-2xl p-6 shadow-sm sm:col-span-2 lg:col-span-2', GLASS_CARD)}>
+                <div className='flex items-center gap-3'>
+                  <div className='flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10'>
+                    <Layers className='h-5 w-5 text-primary' />
+                  </div>
+                  <h3 className='text-sm font-semibold tracking-tight'>
+                    A modern, boring-in-a-good-way stack
+                  </h3>
+                </div>
+                <p className='mt-3 text-sm leading-6 text-muted-foreground'>
+                  Next.js App Router, Prisma on Postgres, Tailwind, and Supabase — nothing exotic, everything
+                  you already know how to deploy.
+                </p>
               </div>
             </div>
           </PageSection>
 
-          {/* SECTION 2: Who this is for */}
-          <PageSection className='bg-background py-6 md:py-10 relative overflow-hidden'>
-            {/* Enhanced gradient backdrop for glassmorphism */}
-            <div 
-              aria-hidden 
-              className='absolute inset-0 pointer-events-none opacity-40'
-              style={{
-                background: 'radial-gradient(ellipse 100% 60% at 50% 40%, rgba(255,255,255,0.06), transparent 70%)'
-              }}
-            />
-           <div className='mx-auto max-w-3xl text-center relative z-10'>
-              <h2 className='text-3xl font-bold tracking-tight md:text-4xl'>
-                Who this is for
-              </h2>
-              <p className='mt-4 text-muted-foreground'>
-                Built for people making real used-car decisions, especially when the seller has more information than the buyer.
-              </p>
-            </div>
-
-            <div className={cn('relative z-10 mx-auto mt-10 grid w-full gap-8 md:mt-12 md:grid-cols-2', alignedSurfaceWidth)}>
-              <div className={cn(glassCardBase, GLASS_CARD)}>
-                <div className='flex items-center gap-3'>
-                  <Lightbulb className='h-6 w-6 shrink-0 text-primary' />
-                  <h3 className='text-sm font-semibold tracking-tight'>
-                    First-time used-car buyers
-                  </h3>
-                </div>
-                <ul className='mt-3 list-disc space-y-2 pl-5 text-sm text-muted-foreground'>
-                  <li>Get plain-language risk signals before spending thousands on the wrong vehicle.</li>
-                  <li>Know which issues deserve a mechanic follow-up and which are mostly noise.</li>
-                </ul>
-              </div>
-
-              <div className={cn(glassCardBase, GLASS_CARD)}>
-                <div className='flex items-center gap-3'>
-                  <Briefcase className='h-6 w-6 shrink-0 text-primary' />
-                  <h3 className='text-sm font-semibold tracking-tight'>
-                    Remote shoppers and marketplace hunters
-                  </h3>
-                </div>
-                <ul className='mt-3 list-disc space-y-2 pl-5 text-sm text-muted-foreground'>
-                  <li>Screen out risky listings before booking travel, delivery, or a third-party inspection.</li>
-                  <li>See whether listing behavior and price movement feel consistent over time.</li>
-                </ul>
-              </div>
-
-              <div className={cn(glassCardBase, GLASS_CARD)}>
-                <div className='flex items-center gap-3'>
-                  <FlaskConical className='h-6 w-6 shrink-0 text-primary' />
-                  <h3 className='text-sm font-semibold tracking-tight'>
-                    Families buying on a budget
-                  </h3>
-                </div>
-                <ul className='mt-3 list-disc space-y-2 pl-5 text-sm text-muted-foreground'>
-                  <li>Reduce the odds of inheriting flood, recall, or overpriced inventory problems.</li>
-                  <li>Focus limited inspection time on the areas most likely to hide costly surprises.</li>
-                </ul>
-              </div>
-
-              <div className={cn(glassCardBase, GLASS_CARD)}>
-                <div className='flex items-center gap-3'>
-                  <Microscope className='h-6 w-6 shrink-0 text-primary' />
-                  <h3 className='text-sm font-semibold tracking-tight'>
-                    Independent inspectors and small dealers
-                  </h3>
-                </div>
-                <ul className='mt-3 list-disc space-y-2 pl-5 text-sm text-muted-foreground'>
-                  <li>
-                    Use the report as a structured starting point for client conversations.
-                  </li>
-                  <li>Bring faster context into sourcing, trade-in, and pre-purchase decisions.</li>
-                </ul>
-              </div>
-            </div>
-          </PageSection>
-
-          {/* SECTION 3: How it works */}
+          {/* SECTION 2: How it works */}
           <PageSection id='how-it-works' className='bg-background py-6 md:py-10 relative overflow-hidden'>
-            {/* Enhanced gradient backdrop for glassmorphism */}
-            <div 
-              aria-hidden 
+            <div
+              aria-hidden
               className='absolute inset-0 pointer-events-none opacity-40'
               style={{
                 background: 'radial-gradient(ellipse 100% 60% at 50% 40%, rgba(255,255,255,0.06), transparent 70%)'
               }}
             />
-            
+
             <div className='mx-auto max-w-3xl text-center relative z-10'>
               <h2 className='text-3xl font-bold tracking-tight md:text-4xl'>
                 How it works
               </h2>
               <p className='mt-4 text-muted-foreground'>
-                Start with a VIN lookup, review the signals, and only go deeper when the vehicle earns a closer look.
+                From signup to your first paying customer, in three steps.
               </p>
             </div>
 
             <div className={cn('relative z-10 mx-auto mt-10 grid w-full gap-8 md:mt-12 md:grid-cols-3', alignedSurfaceWidth)}>
-              <div className={cn(glassCardBase, GLASS_CARD)}>
+              <div className={cn('flex flex-col rounded-2xl p-5 text-left shadow-sm', GLASS_CARD)}>
                 <div className='flex items-center gap-3'>
                   <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold uppercase tracking-wide text-primary'>
                     1
                   </div>
                   <h3 className='text-sm font-semibold tracking-tight'>
-                    Start with a VIN lookup
+                    Spin up an organization
                   </h3>
                 </div>
                 <ul className='mt-3 list-disc space-y-2 pl-5 text-sm text-muted-foreground'>
-                  <li>Enter a VIN to decode the vehicle identity and key factory specs.</li>
-                  <li>Normalize the record with cached NHTSA vPIC data.</li>
-                  <li>See model-level recall counts immediately.</li>
+                  <li>Sign up and an organization is created automatically.</li>
+                  <li>Add your first workspace within the free plan's limit.</li>
+                  <li>Everything is scoped to your organization from the start.</li>
                 </ul>
               </div>
 
-              <div className={cn(glassCardBase, GLASS_CARD)}>
+              <div className={cn('flex flex-col rounded-2xl p-5 text-left shadow-sm', GLASS_CARD)}>
                 <div className='flex items-center gap-3'>
                   <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold uppercase tracking-wide text-primary'>
                     2
                   </div>
                   <h3 className='text-sm font-semibold tracking-tight'>
-                    Review the risk teaser
+                    Invite your team, assign workspaces
                   </h3>
                 </div>
                 <ul className='mt-3 list-disc space-y-2 pl-5 text-sm text-muted-foreground'>
-                  <li>Compare the asking price and listing behavior against marketplace history.</li>
-                  <li>Flag flood exposure probability using FEMA and disaster signals.</li>
-                  <li>Surface a quick buy-with-caution versus investigate-further view.</li>
+                  <li>Invite admins and members by email.</li>
+                  <li>Choose exactly which workspaces each person can access.</li>
+                  <li>Change roles and access at any time.</li>
                 </ul>
               </div>
 
-              <div className={cn(glassCardBase, GLASS_CARD)}>
+              <div className={cn('flex flex-col rounded-2xl p-5 text-left shadow-sm', GLASS_CARD)}>
                 <div className='flex items-center gap-3'>
                   <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold uppercase tracking-wide text-primary'>
                     3
                   </div>
                   <h3 className='text-sm font-semibold tracking-tight'>
-                    Unlock the full intelligence report
+                    Turn on billing and ship
                   </h3>
                 </div>
                 <ul className='mt-3 list-disc space-y-2 pl-5 text-sm text-muted-foreground'>
-                  <li>Spend a credit to generate deeper scoring and report drivers.</li>
-                  <li>Inspect the market timeline, pricing context, recall details, and risk breakdown.</li>
-                  <li>Use the buyer guidance checklist to prepare for calls, inspections, and negotiations.</li>
+                  <li>Pick a plan and let Stripe handle checkout and renewals.</li>
+                  <li>Workspace limits and credits update automatically per plan.</li>
+                  <li>Focus on your product instead of billing plumbing.</li>
                 </ul>
               </div>
             </div>
@@ -573,14 +516,15 @@ export default async function HeroSection() {
             </div>
           </PageSection>
 
-          {/* SECTION 4: Testimonials */}
+          {/* SECTION 3: Testimonials */}
           <PageSection className='bg-background py-6 md:py-10 relative overflow-hidden'>
             <div className='mx-auto max-w-3xl text-center'>
               <h2 className='text-3xl font-bold tracking-tight md:text-4xl'>
-                What buyers told us they need
+                What builders say
               </h2>
               <p className='mt-4 text-muted-foreground'>
-                The product is shaped around the real purchase anxiety behind used cars: hidden damage, bad pricing, and not knowing what to verify next.
+                Teams use this kit to skip the multi-tenant, billing, and access-control groundwork and get
+                straight to building their actual product.
               </p>
             </div>
 
@@ -681,91 +625,17 @@ export default async function HeroSection() {
             )}
           </PageSection>
 
-          <PageSection className='bg-background py-6 md:py-10 relative overflow-hidden'>
-            <div
-              aria-hidden
-              className='absolute inset-0 pointer-events-none opacity-40'
-              style={{
-                background: 'radial-gradient(ellipse 100% 60% at 50% 40%, rgba(255,255,255,0.06), transparent 70%)'
-              }}
-            />
-
-            <div className='mx-auto max-w-3xl text-center relative z-10'>
-              <h2 className='text-3xl font-bold tracking-tight md:text-4xl'>
-                Upcoming features
-              </h2>
-              <p className='mt-4 text-muted-foreground'>
-                Once the public-data foundation is proven, the next release expands into official history, stronger verification, and dealer-grade tooling.
-              </p>
-            </div>
-
-            <div className={cn('relative z-10 mx-auto mt-10 grid w-full gap-8 md:mt-12 md:grid-cols-2', alignedSurfaceWidth)}>
-              <div className={cn(glassCardBase, GLASS_CARD)}>
-                <div className='flex items-center gap-3'>
-                  <ShieldCheck className='h-6 w-6 shrink-0 text-primary' />
-                  <h3 className='text-sm font-semibold tracking-tight'>
-                    Official title and odometer history
-                  </h3>
-                </div>
-                <ul className='mt-3 list-disc space-y-2 pl-5 text-sm text-muted-foreground'>
-                  <li>Integrate NMVTIS for official title brands such as salvage, rebuilt, or junk.</li>
-                  <li>Bring verified odometer readings into the report instead of relying on derived signals alone.</li>
-                </ul>
-              </div>
-
-              <div className={cn(glassCardBase, GLASS_CARD)}>
-                <div className='flex items-center gap-3'>
-                  <Building2 className='h-6 w-6 shrink-0 text-primary' />
-                  <h3 className='text-sm font-semibold tracking-tight'>
-                    Insurance and theft indicators
-                  </h3>
-                </div>
-                <ul className='mt-3 list-disc space-y-2 pl-5 text-sm text-muted-foreground'>
-                  <li>Connect NICB VINCheck style signals for theft confirmation and salvage indicators.</li>
-                  <li>Close some of the biggest trust gaps that public sources alone cannot resolve.</li>
-                </ul>
-              </div>
-
-              <div className={cn(glassCardBase, GLASS_CARD)}>
-                <div className='flex items-center gap-3'>
-                  <Microscope className='h-6 w-6 shrink-0 text-primary' />
-                  <h3 className='text-sm font-semibold tracking-tight'>
-                    Stronger mileage verification
-                  </h3>
-                </div>
-                <ul className='mt-3 list-disc space-y-2 pl-5 text-sm text-muted-foreground'>
-                  <li>Layer in time-series odometer signals from commercial inspection partners.</li>
-                  <li>Improve fraud detection when listing mileage does not fit the vehicle timeline.</li>
-                </ul>
-              </div>
-
-              <div className={cn(glassCardBase, GLASS_CARD)}>
-                <div className='flex items-center gap-3'>
-                  <Briefcase className='h-6 w-6 shrink-0 text-primary' />
-                  <h3 className='text-sm font-semibold tracking-tight'>
-                    Market forecasting and dealer tools
-                  </h3>
-                </div>
-                <ul className='mt-3 list-disc space-y-2 pl-5 text-sm text-muted-foreground'>
-                  <li>Add depreciation analytics based on historical model performance and local market behavior.</li>
-                  <li>Expand into white-label workflows for dealerships evaluating inventory or sharing transparency reports.</li>
-                </ul>
-              </div>
-            </div>
-          </PageSection>
-          
-          
-          {/* SECTION 5: PRICING */}
+          {/* SECTION 4: PRICING */}
           <PageSection id='pricing' className='bg-background py-6 md:py-10 relative overflow-hidden'>
             {/* Very subtle gradient backdrop */}
-            <div 
-              aria-hidden 
+            <div
+              aria-hidden
               className='absolute inset-0 pointer-events-none opacity-40'
               style={{
                 background: 'radial-gradient(ellipse 100% 60% at 50% 40%, rgba(255,255,255,0.02), transparent 70%)'
               }}
             />
-            
+
             <div className='flex flex-col items-center gap-4 text-center relative z-10'>
               <h2 className='text-3xl font-bold md:text-4xl'>{PRICE_HEADING}</h2>
             </div>

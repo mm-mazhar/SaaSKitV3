@@ -12,6 +12,8 @@ ALTER TABLE public."OrganizationMember" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."OrganizationMember" FORCE ROW LEVEL SECURITY;
 ALTER TABLE public."Workspace" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."Workspace" FORCE ROW LEVEL SECURITY;
+ALTER TABLE public."WorkspaceMember" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."WorkspaceMember" FORCE ROW LEVEL SECURITY;
 ALTER TABLE public."OrganizationInvite" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."OrganizationInvite" FORCE ROW LEVEL SECURITY;
 
@@ -31,6 +33,7 @@ SELECT public.define_service_role_policy('Subscription');
 SELECT public.define_service_role_policy('Organization');
 SELECT public.define_service_role_policy('OrganizationMember');
 SELECT public.define_service_role_policy('Workspace');
+SELECT public.define_service_role_policy('WorkspaceMember');
 SELECT public.define_service_role_policy('OrganizationInvite');
 
 --  ───────────────────────────────────────────────────────────────
@@ -68,6 +71,17 @@ DROP POLICY IF EXISTS "Workspace: select by org membership" ON public."Workspace
 CREATE POLICY "Workspace: select by org membership"
 ON public."Workspace" FOR SELECT TO authenticated
 USING ("organizationId" IN (SELECT m."organizationId" FROM public."OrganizationMember" m WHERE m."userId" = (SELECT auth.uid()::text)));
+
+-- WORKSPACE MEMBERS (per-workspace access grants)
+-- Note: RLS here only enforces the multi-tenant boundary (same org can read the
+-- grant rows). The finer-grained rule -- who may actually WRITE a grant, and the
+-- "you can only grant what you yourself can access" invariant -- is enforced in
+-- application code (WorkspaceAccessService), same as every other write path in
+-- this schema, which goes through the service role.
+DROP POLICY IF EXISTS "WorkspaceMember: select by org membership" ON public."WorkspaceMember";
+CREATE POLICY "WorkspaceMember: select by org membership"
+ON public."WorkspaceMember" FOR SELECT TO authenticated
+USING ("workspaceId" IN (SELECT w.id FROM public."Workspace" w WHERE w."organizationId" IN (SELECT m."organizationId" FROM public."OrganizationMember" m WHERE m."userId" = (SELECT auth.uid()::text))));
 
 -- SUBSCRIPTIONS
 DROP POLICY IF EXISTS "Subscription: select by org membership" ON public."Subscription";

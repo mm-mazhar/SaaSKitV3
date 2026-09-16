@@ -2,13 +2,12 @@
 // tests/integration/disposable-email-blocking.test.ts
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { TestUtils } from './setup'
-// import { DatabaseHelpers, testDb } from './setup'
+import { TestUtils, testDb } from './setup'
 import { isDisposableEmail } from '@/lib/email-validator'
 import { validateEmail } from '@/app/actions/auth-check'
 import { InvitationService } from '@/lib/services/invitation-service'
 import { OrganizationService } from '@/lib/services/organization-service'
-import { ROLES } from '@/lib/constants'
+import { ROLES, PLAN_IDS } from '@/lib/constants'
 import { itIf, MULTI_ORG_ENABLED } from '../helpers/guards'
 
 describe('Disposable Email Blocking', () => {
@@ -24,6 +23,19 @@ describe('Disposable Email Blocking', () => {
       'Test Organization',
       TestUtils.generateUniqueSlug('test-org')
     )
+    // Invites require a paid plan; give the test org one so invite calls in this
+    // file exercise disposable-email blocking rather than the Free-plan gate.
+    await testDb.subscription.create({
+      data: {
+        stripeSubscriptionId: `test-sub-${testOrg.id}`,
+        interval: 'month',
+        status: 'active',
+        planId: PLAN_IDS.PLAN_A,
+        currentPeriodStart: Math.floor(Date.now() / 1000),
+        currentPeriodEnd: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+        organizationId: testOrg.id,
+      },
+    })
   })
 
   afterEach(async () => {
@@ -266,6 +278,17 @@ describe('Disposable Email Blocking', () => {
         'Second Organization',
         TestUtils.generateUniqueSlug('second-org')
       )
+      await testDb.subscription.create({
+        data: {
+          stripeSubscriptionId: `test-sub-${secondOrg.id}`,
+          interval: 'month',
+          status: 'active',
+          planId: PLAN_IDS.PLAN_A,
+          currentPeriodStart: Math.floor(Date.now() / 1000),
+          currentPeriodEnd: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+          organizationId: secondOrg.id,
+        },
+      })
 
       // Try to invite disposable email to both organizations
       await expect(

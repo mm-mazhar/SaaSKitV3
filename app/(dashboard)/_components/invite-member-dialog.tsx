@@ -3,6 +3,7 @@
 'use client'
 
 import { Plus } from 'lucide-react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import * as React from 'react'
 
@@ -34,13 +35,20 @@ type InviteWorkspaceOption = { id: string; name: string; slug: string }
 export function InviteMemberDialog({
   orgId,
   workspaces = [],
+  disabled = false,
+  isOwner = false,
 }: {
   orgId: string
   workspaces?: InviteWorkspaceOption[]
+  /** True when the organization's plan doesn't allow inviting members (e.g. Free plan). */
+  disabled?: boolean
+  /** Only the OWNER may grant billing access to an invited admin. */
+  isOwner?: boolean
 }) {
   const [open, setOpen] = React.useState(false)
   const [email, setEmail] = React.useState('')
   const [role, setRole] = React.useState<'ADMIN' | 'MEMBER'>('MEMBER')
+  const [canManageBilling, setCanManageBilling] = React.useState(false)
   // Default: every workspace the inviter can see is checked. They can uncheck
   // any they want to keep the new member out of.
   const [workspaceIds, setWorkspaceIds] = React.useState<string[]>(() => workspaces.map((w) => w.id))
@@ -60,6 +68,7 @@ export function InviteMemberDialog({
         setOpen(false)
         setEmail('')
         setRole('MEMBER')
+        setCanManageBilling(false)
         setWorkspaceIds(workspaces.map((w) => w.id))
         router.refresh()
       },
@@ -88,8 +97,28 @@ export function InviteMemberDialog({
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    console.log('🚀 Submitting invite form with:', { email, role, workspaceIds })
-    mutate({ email, role, workspaceIds })
+    console.log('🚀 Submitting invite form with:', { email, role, workspaceIds, canManageBilling })
+    mutate({ email, role, workspaceIds, canManageBilling: role === 'ADMIN' ? canManageBilling : false })
+  }
+
+  if (disabled) {
+    return (
+      <div className='flex flex-col items-end gap-1'>
+        <Button
+          disabled
+          className='focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0'
+        >
+          <Plus className='mr-2 h-4 w-4' />
+          Invite Member
+        </Button>
+        <Link
+          href='/dashboard/billing'
+          className='text-xs text-muted-foreground underline underline-offset-2 hover:text-primary'
+        >
+          Upgrade to invite teammates
+        </Link>
+      </div>
+    )
   }
 
   return (
@@ -137,6 +166,26 @@ export function InviteMemberDialog({
                 </SelectContent>
               </Select>
             </div>
+            {role === 'ADMIN' && isOwner && (
+              <div className='grid grid-cols-4 items-start gap-4'>
+                <div className='col-span-4 col-start-2'>
+                  <label className='flex items-start gap-2 text-sm cursor-pointer select-none'>
+                    <input
+                      type='checkbox'
+                      className='mt-0.5 h-3.5 w-3.5 rounded border-input accent-primary'
+                      checked={canManageBilling}
+                      onChange={(e) => setCanManageBilling(e.target.checked)}
+                    />
+                    <span>
+                      Allow this admin to manage billing
+                      <span className='block text-xs text-muted-foreground'>
+                        Lets them buy or change subscriptions and open the billing portal. Off by default.
+                      </span>
+                    </span>
+                  </label>
+                </div>
+              </div>
+            )}
             {workspaces.length > 0 && (
               <div className='grid grid-cols-4 items-start gap-4'>
                 <Label className='text-right pt-1'>Workspaces</Label>

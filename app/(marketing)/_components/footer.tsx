@@ -46,14 +46,14 @@ export default function FooterSection({ isAuthenticated = false }: FooterSection
             />
             <div className='relative flex flex-col items-center gap-5'>
               <div className='rounded-full border border-border/60 bg-background/75 px-3 py-1 text-[11px] font-medium tracking-[0.22em] text-muted-foreground'>
-                CHECK BEFORE YOU COMMIT
+                BUILT FOR TEAMS THAT SHIP
               </div>
               <div className='max-w-2xl space-y-3'>
                 <h2 className='text-2xl font-semibold tracking-tight md:text-3xl'>
-                  Run the VIN before you trust the listing
+                  Stop rebuilding the same SaaS plumbing
                 </h2>
                 <p className='text-sm leading-6 text-muted-foreground md:text-base'>
-                  Decode the vehicle, review market behavior, and walk into seller conversations with sharper questions.
+                  Organizations, workspaces, roles, and billing are already wired together. Start your account and see it for yourself.
                 </p>
               </div>
               <div className='flex flex-col gap-3 sm:flex-row'>

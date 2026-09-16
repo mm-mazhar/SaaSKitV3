@@ -120,13 +120,23 @@ export async function POST(req: Request) {
         }
       }
 
-      // Link customer ID to organization (only if not already linked)
-      if (existingOrg.stripeCustomerId !== customerId) {
-        await prisma.organization.update({ 
-          where: { id: orgId }, 
-          data: { stripeCustomerId: customerId } 
-        })
-        console.log(`[Stripe Webhook] 🔗 Linked customer to organization`)
+      // Link customer ID to organization (only if not already linked and customerId is valid)
+      if (customerId && existingOrg.stripeCustomerId !== customerId) {
+        try {
+          await prisma.organization.update({
+            where: { id: orgId },
+            data: { stripeCustomerId: customerId }
+          })
+          console.log(`[Stripe Webhook] 🔗 Linked customer to organization`)
+        } catch (linkError) {
+          if (linkError && typeof linkError === 'object' && 'code' in linkError && linkError.code === 'P2002') {
+            console.warn(`[Stripe Webhook] ⚠️  Customer ${customerId} already linked to another organization`)
+          } else {
+            throw linkError
+          }
+        }
+      } else if (!customerId) {
+        console.warn(`[Stripe Webhook] ⚠️  No customer ID in session, skipping link`)
       } else {
         console.log(`[Stripe Webhook] 🔗 Customer already linked to organization`)
       }
@@ -168,13 +178,28 @@ export async function POST(req: Request) {
           },
         })
         console.log(`[Stripe Webhook] 💾 Subscription record saved`)
+
+        // Clear any leftover one-time-purchase plan marker now that this org
+        // has a real recurring subscription -- resolveEffectivePlanId already
+        // prefers the subscription over oneTimePlanId while both exist, but
+        // leaving the stale value in place is a dormant landmine: if this
+        // subscription is later canceled, resolveEffectivePlanId would fall
+        // back to the old one-time plan and silently reinstate entitlements
+        // (workspace/invite limits) for a plan the org no longer has.
+        await prisma.organization.update({
+          where: { id: orgId },
+          data: { oneTimePlanId: null },
+        })
       }
 
       if (session.mode === 'payment' && session.payment_status === 'paid') {
         console.log(`[Stripe Webhook] 💳 Processing one-time payment for session: ${session.id}`)
 
         try {
-          if (!orgId) throw new Error('No orgId found for one-time payment')
+          if (!orgId) {
+            console.error('[Stripe Webhook] ❌ No orgId found for one-time payment')
+            throw new Error('No orgId found for one-time payment')
+          }
 
           const lineItems = await stripe.checkout.sessions.listLineItems(session.id)
           const priceId = lineItems.data[0]?.price?.id
@@ -186,10 +211,17 @@ export async function POST(req: Request) {
               data: {
                 credits: { increment: plan.credits },
                 creditsReminderThresholdSent: false,
+                // Record the purchased plan itself, not just the credits it
+                // included -- there is no Subscription row for a one-time
+                // payment, so this is the only durable record that this org
+                // actually bought a paid plan (as opposed to holding leftover
+                // free credits or credits transferred from a deleted org).
+                // See lib/constants.ts's resolveEffectivePlanId.
+                oneTimePlanId: plan.id,
               },
               select: { name: true, credits: true },
             })
-            console.log(`[Stripe Webhook] ✅ Added ${plan.credits} one-time credits to ${orgId}. New balance: ${updatedOrg.credits}`)
+            console.log(`[Stripe Webhook] ✅ Added ${plan.credits} one-time credits to ${orgId} and recorded oneTimePlanId=${plan.id}. New balance: ${updatedOrg.credits}`)
 
             if (ENABLE_EMAILS) {
               const owner = await getOrgOwner(orgId)
@@ -368,13 +400,21 @@ export async function POST(req: Request) {
         where: { id: orgId },
         select: { stripeCustomerId: true }
       })
-      
-      if (!currentOrg?.stripeCustomerId) {
-        await prisma.organization.update({
-          where: { id: orgId },
-          data: { stripeCustomerId: customerId }
-        })
-        console.log(`[Stripe Webhook] 🔗 Linked customer ${customerId} to organization ${orgId}`)
+
+      if (customerId && !currentOrg?.stripeCustomerId) {
+        try {
+          await prisma.organization.update({
+            where: { id: orgId },
+            data: { stripeCustomerId: customerId }
+          })
+          console.log(`[Stripe Webhook] 🔗 Linked customer ${customerId} to organization ${orgId}`)
+        } catch (linkError) {
+          if (linkError && typeof linkError === 'object' && 'code' in linkError && linkError.code === 'P2002') {
+            console.warn(`[Stripe Webhook] ⚠️  Customer ${customerId} already linked to another organization, continuing anyway`)
+          } else {
+            throw linkError
+          }
+        }
       }
 
       console.log(`  Organization: ${org.id}`)
@@ -461,6 +501,15 @@ export async function POST(req: Request) {
             },
           })
         }
+
+        // Clear any leftover one-time-purchase plan marker now that this org
+        // has a real recurring subscription -- see the matching comment in
+        // the checkout.session.completed handler above for why a stale value
+        // here is a dormant landmine rather than a harmless no-op.
+        await prisma.organization.update({
+          where: { id: org.id },
+          data: { oneTimePlanId: null },
+        })
       } catch (subError) {
         console.error(`[Stripe Webhook] ⚠️ Subscription upsert error (continuing anyway):`, subError)
         // Continue anyway - credits are more important than subscription record

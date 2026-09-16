@@ -30,7 +30,12 @@ export const workspaceRouter = {
    * Create a new workspace in the current organization
    * Validates name (max 20 chars), generates unique slug
    */
-  create: orgProcedure
+  // Workspace provisioning is an org-management action, not something every
+  // member should be able to do -- members work within workspaces they've
+  // been granted access to, they don't create or remove them. This was
+  // previously on orgProcedure (any member), which was inconsistent with
+  // `delete` and `updateName` below already requiring ADMIN/OWNER.
+  create: adminProcedure
     .input(z.object({ name: nameSchema }))
     .route({
       method: 'POST',

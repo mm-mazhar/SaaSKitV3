@@ -4,10 +4,10 @@ import { ClientAppSidebar } from '@/app/(dashboard)/_components/ClientAppSidebar
 import { SidebarProvider } from '@/app/(dashboard)/_components/sidebar'
 import { TopBar } from '@/app/(dashboard)/_components/topbar'
 import { getData } from '@/app/lib/db'
-import { createClient } from '@/app/lib/supabase/server'
+import { getCachedUser } from '@/app/lib/supabase/server'
 import { ToastProvider } from '@/components/ToastProvider'
 import { QueryProvider } from '@/components/providers/query-provider'
-import { PLAN_IDS, PRICING_PLANS, type PlanId, type PricingPlan } from '@/lib/constants'
+import { PLAN_IDS, PRICING_PLANS, resolveEffectivePlanId, type PlanId } from '@/lib/constants'
 import type { WorkspaceListOutput } from '@/lib/orpc/types'
 import { WorkspaceService } from '@/lib/services/workspace-service'
 import { generateOrgNameFromEmail, slugify } from '@/lib/utils'
@@ -25,10 +25,9 @@ const SUPER_ADMINS =
 
 async function DashboardGroupLayout({ children }: { children: ReactNode }) {
   noStore()
-  const supabase = await createClient()
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getCachedUser()
 
   if (!user) {
     return redirect('/get-started')
@@ -103,32 +102,27 @@ async function DashboardGroupLayout({ children }: { children: ReactNode }) {
       })
   }
 
-  const resolvePlanId = async (
-    planIdFromDb?: string | null
-  ): Promise<PlanId | null> => {
-    if (!planIdFromDb) return null
-    if (planIdFromDb === PLAN_IDS.free) return PLAN_IDS.free
-    const matched = PRICING_PLANS.find(
-      (p: PricingPlan) => p.stripePriceId === planIdFromDb
-    )
-    return matched?.id ?? null
-  }
-
-  const currentPlan = await resolvePlanId(orgBilling?.subscription?.planId)
   const subStatus = orgBilling?.subscription?.status
   const creditsRemaining = (orgBilling?.credits as number | undefined) ?? 0
-  
-  // Logic fix: 
+
+  // Logic fix:
   // 'credits' in DB = Remaining Credits (Balance).
   // 'exhausted' should be true only if balance <= 0.
   // The old logic (creditsUsed >= creditsTotal) was treating 'credits' as 'consumed', which was wrong.
-  
-  const effectivePlan: PlanId =
-    subStatus === 'active'
-      ? (currentPlan ?? PLAN_IDS.free)
-      : creditsRemaining > 0
-        ? PLAN_IDS.PLAN_A
-        : PLAN_IDS.free
+
+  // Bug fix: the plan badge (and the credits-total it drives) must come from a
+  // real recurring Subscription OR a recorded one-time plan purchase, never be
+  // inferred from a leftover credit balance. The previous "no active
+  // subscription, but credits > 0 -> show Starter" fallback mislabeled any org
+  // sitting on ordinary free-tier credits, or credits transferred in from a
+  // deleted organization, as if it were a paid plan -- with no purchase
+  // backing that claim. resolveEffectivePlanId is the single shared resolver
+  // also used by WorkspaceService/InvitationService for the same decision, so
+  // the badge always agrees with what actually gates workspace/invite limits.
+  const effectivePlan: PlanId = resolveEffectivePlanId(
+    orgBilling?.subscription?.planId,
+    orgBilling?.oneTimePlanId
+  )
   const creditsTotal = PRICING_PLANS.find((p) => p.id === effectivePlan)?.credits ?? 0
   
   const exhausted = creditsRemaining <= 0

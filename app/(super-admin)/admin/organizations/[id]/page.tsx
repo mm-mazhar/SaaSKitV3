@@ -63,12 +63,12 @@ export default async function OrgDetailPage(props: { params: Promise<{ id: strin
         <div className="ml-auto flex gap-2">
           <Badge
             className={`h-7 px-3 text-xs font-medium border ${
-              org.subscription?.status === 'active'
+              org.isOnPaidPlan
                 ? 'bg-primary/10 text-primary border-primary/20'
                 : 'bg-muted text-muted-foreground border-border'
             }`}
           >
-            {org.subscription?.status === 'active' ? 'Pro Plan' : 'Free Plan'}
+            {org.isOnPaidPlan ? 'Pro Plan' : 'Free Plan'}
           </Badge>
         </div>
       </div>

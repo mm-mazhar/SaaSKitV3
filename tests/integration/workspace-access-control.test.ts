@@ -354,18 +354,21 @@ describe('Workspace Access Control', () => {
   })
 
   describe('Workspace creation auto-grants the creator access', () => {
-    it('a member who creates a workspace can immediately see it', async () => {
-      const { member } = await setupOrgWithAllRoles()
+    // Workspace creation is admin-tier-and-up (see "workspace.create
+    // authorization" below) -- an ADMIN, not a MEMBER, exercises the
+    // auto-grant-access behavior this test is actually about.
+    it('an admin who creates a workspace can immediately see it', async () => {
+      const { admin } = await setupOrgWithAllRoles()
 
       const workspace = await WorkspaceService.createWorkspace(
-        member.id,
+        admin.id,
         organizationId,
         'Self-Created WS',
         TestUtils.generateUniqueSlug('self-created')
       )
       createdWorkspaceIds.push(workspace.id)
 
-      const workspaces = await WorkspaceService.getOrganizationWorkspaces(member.id, organizationId)
+      const workspaces = await WorkspaceService.getOrganizationWorkspaces(admin.id, organizationId)
       expect(workspaces.map((w) => w.id)).toContain(workspace.id)
     })
 
@@ -439,6 +442,51 @@ describe('Workspace Access Control', () => {
 
       const found = await testDb.workspace.findUnique({ where: { id: wsA.id } })
       expect(found).toBeNull()
+    })
+  })
+
+  // A plain MEMBER could previously create workspaces (workspace.create was on
+  // orgProcedure, any member) while being blocked from renaming/deleting them
+  // (adminProcedure) -- an asymmetric gap: members were meant to work within
+  // workspaces they're granted access to, not provision or remove them.
+  describe('workspace.create authorization', () => {
+    it('rejects a MEMBER trying to create a workspace', async () => {
+      const { member } = await setupOrgWithAllRoles()
+
+      await expect(
+        WorkspaceService.createWorkspace(member.id, organizationId, 'New Workspace', 'new-workspace-x')
+      ).rejects.toThrow(/Unauthorized/i)
+
+      const workspaces = await testDb.workspace.findMany({ where: { organizationId } })
+      expect(workspaces).toHaveLength(0)
+    })
+
+    it('allows an ADMIN to create a workspace', async () => {
+      const { admin } = await setupOrgWithAllRoles()
+
+      const workspace = await WorkspaceService.createWorkspace(
+        admin.id,
+        organizationId,
+        'New Workspace',
+        'new-workspace-y'
+      )
+      createdWorkspaceIds.push(workspace.id)
+
+      expect(workspace.organizationId).toBe(organizationId)
+    })
+
+    it('allows the OWNER to create a workspace', async () => {
+      const { owner } = await setupOrgWithAllRoles()
+
+      const workspace = await WorkspaceService.createWorkspace(
+        owner.id,
+        organizationId,
+        'New Workspace',
+        'new-workspace-z'
+      )
+      createdWorkspaceIds.push(workspace.id)
+
+      expect(workspace.organizationId).toBe(organizationId)
     })
   })
 })

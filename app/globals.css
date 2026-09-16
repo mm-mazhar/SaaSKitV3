@@ -267,6 +267,12 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Distinctive display face for headings; body copy stays on Inter for density/readability. */
+  h1, h2, h3, h4 {
+    font-family: var(--font-display), ui-sans-serif, sans-serif;
+    letter-spacing: -0.02em;
+  }
 }
 
 :root {

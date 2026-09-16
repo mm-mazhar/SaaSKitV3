@@ -2,10 +2,10 @@
 // tests/integration/transactional-emails.test.ts
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { TestUtils } from './setup'
+import { TestUtils, testDb } from './setup'
 import { OrganizationService } from '@/lib/services/organization-service'
 import { InvitationService } from '@/lib/services/invitation-service'
-import { ROLES, CREDITS_FREE } from '@/lib/constants'
+import { ROLES, CREDITS_FREE, PLAN_IDS } from '@/lib/constants'
 import * as emailModule from '@/app/lib/email'
 import { itIf, MULTI_ORG_ENABLED } from '../helpers/guards'
 
@@ -37,6 +37,19 @@ describe('Transactional Emails', () => {
       'Test Organization',
       TestUtils.generateUniqueSlug('test-org')
     )
+    // Invites require a paid plan; give the test org one so invite calls in this
+    // file exercise email sending rather than the Free-plan gate.
+    await testDb.subscription.create({
+      data: {
+        stripeSubscriptionId: `test-sub-${testOrg.id}`,
+        interval: 'month',
+        status: 'active',
+        planId: PLAN_IDS.PLAN_A,
+        currentPeriodStart: Math.floor(Date.now() / 1000),
+        currentPeriodEnd: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+        organizationId: testOrg.id,
+      },
+    })
   })
 
   afterEach(async () => {

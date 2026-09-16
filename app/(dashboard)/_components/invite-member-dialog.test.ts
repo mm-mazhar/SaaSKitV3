@@ -41,7 +41,8 @@ function createInviteMemberDialogMutationCallbacks(
   setEmail: (email: string) => void,
   setRole: (role: 'ADMIN' | 'MEMBER') => void,
   routerRefresh: () => void,
-  currentEmail: string
+  currentEmail: string,
+  setCanManageBilling: (value: boolean) => void = () => {}
 ): MutationCallbacks {
   return {
     onSuccess: () => {
@@ -49,6 +50,7 @@ function createInviteMemberDialogMutationCallbacks(
       setOpen(false)
       setEmail('')
       setRole('MEMBER')
+      setCanManageBilling(false)
       routerRefresh()
     },
     onError: (err: Error) => {
@@ -102,7 +104,7 @@ describe('InviteMemberDialog Mutation Behavior Properties', () => {
       )
     })
 
-    it('resets form state (email and role) on mutation success', async () => {
+    it('resets form state (email, role, and billing access) on mutation success', async () => {
       await fc.assert(
         fc.asyncProperty(
           fc.emailAddress(),
@@ -112,6 +114,7 @@ describe('InviteMemberDialog Mutation Behavior Properties', () => {
             const setOpen = vi.fn()
             const setEmail = vi.fn()
             const setRole = vi.fn()
+            const setCanManageBilling = vi.fn()
             const showToast = vi.fn()
             const routerRefresh = vi.fn()
 
@@ -121,7 +124,8 @@ describe('InviteMemberDialog Mutation Behavior Properties', () => {
               setEmail,
               setRole,
               routerRefresh,
-              email
+              email,
+              setCanManageBilling
             )
             
             callbacks.onSuccess()
@@ -131,6 +135,11 @@ describe('InviteMemberDialog Mutation Behavior Properties', () => {
             
             // Property: role is reset to default 'MEMBER'
             expect(setRole).toHaveBeenCalledWith('MEMBER')
+
+            // Property: the owner-only billing-access checkbox is reset too,
+            // so it never carries over as a stale "checked" state into the
+            // next invite (e.g. inviting a MEMBER right after an ADMIN).
+            expect(setCanManageBilling).toHaveBeenCalledWith(false)
           }
         ),
         { numRuns: 100 }

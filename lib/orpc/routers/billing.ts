@@ -1,7 +1,7 @@
 // lib/orpc/routers/billing.ts
 
 import * as z from 'zod'
-import { adminProcedure } from '../procedures'
+import { billingAdminProcedure } from '../procedures'
 import { ORPCError } from '../server'
 import { getStripeSession, stripe } from '@/app/lib/stripe'
 import { 
@@ -9,6 +9,7 @@ import {
   PLAN_IDS,
   PRICING_PLANS, 
   PRODUCTION_URL, 
+  PURCHASABLE_PLANS,
   SUBSCRIPTION_RENEWAL_CREDIT_THRESHOLD,
 } from '@/lib/constants'
 
@@ -28,7 +29,7 @@ export const billingRouter = {
    * Create a subscription checkout session
    * Returns Stripe checkout URL for redirect
    */
-  createSubscription: adminProcedure
+  createSubscription: billingAdminProcedure
     .input(z.object({ planId: planIdSchema }))
     .route({
       method: 'POST',
@@ -37,7 +38,11 @@ export const billingRouter = {
       description: 'Creates a Stripe checkout session for subscription',
     })
     .handler(async ({ input, context }) => {
-      const plan = PRICING_PLANS.find((p) => p.id === input.planId)
+      // PURCHASABLE_PLANS, not PRICING_PLANS: a disabled Partner tier (see
+      // PARTNER_PLAN_ENABLED in lib/constants.ts) must be rejected here too,
+      // not just hidden from the UI -- otherwise someone could still buy it
+      // by calling this endpoint directly with its planId.
+      const plan = PURCHASABLE_PLANS.find((p) => p.id === input.planId)
       
       if (!plan?.stripePriceId) {
         throw new ORPCError('BAD_REQUEST', { 
@@ -77,7 +82,7 @@ export const billingRouter = {
    * Only allowed when credits < SUBSCRIPTION_RENEWAL_CREDIT_THRESHOLD
    * Returns Stripe checkout URL for redirect
    */
-  renewSubscription: adminProcedure
+  renewSubscription: billingAdminProcedure
     .route({
       method: 'POST',
       path: '/billing/subscription/renew',
@@ -141,7 +146,7 @@ export const billingRouter = {
    * Create a Stripe customer portal session
    * Returns portal URL for redirect
    */
-  createCustomerPortal: adminProcedure
+  createCustomerPortal: billingAdminProcedure
     .route({
       method: 'POST',
       path: '/billing/portal',

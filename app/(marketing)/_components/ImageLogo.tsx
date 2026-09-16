@@ -10,7 +10,7 @@ const Imagelogo = () => {
     <Link href='/'>
       <div className='flex items-center'>
         <Image
-          src='/logo-change-me.png'
+          src='/logo-change-me-02.png'
           alt='logo'
           width={50}
           height={50}

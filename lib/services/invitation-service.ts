@@ -2,7 +2,7 @@
 
 import prisma from '@/app/lib/db'
 import { randomBytes } from 'crypto'
-import { INVITE_EXPIRATION_MS, LIMITS, LOCAL_SITE_URL, OrganizationRole, PRODUCTION_URL, ROLES, SITE_URL, CHECK_DISPOSABLE_EMAILS } from '../constants'
+import { INVITE_EXPIRATION_MS, LIMITS, LOCAL_SITE_URL, OrganizationRole, PLAN_IDS, PRODUCTION_URL, ROLES, SITE_URL, CHECK_DISPOSABLE_EMAILS, resolveEffectivePlanId } from '../constants'
 import { isDisposableEmail } from '../email-validator'
 import { WorkspaceAccessService } from './workspace-access-service'
 
@@ -44,14 +44,32 @@ export class InvitationService {
     organizationId: string,
     email: string,
     role: OrganizationRole = ROLES.MEMBER,
-    workspaceIds?: string[]
+    workspaceIds?: string[],
+    canManageBilling: boolean = false
   ) {
     // 1. Check for disposable email
     if (CHECK_DISPOSABLE_EMAILS && isDisposableEmail(email)) {
       throw new Error('Disposable emails cannot be invited to organizations. Please use a permanent email address.')
     }
 
-    // 2. Check Limits
+    // 2. Free-plan organizations cannot invite team members at all -- inviting
+    // requires at least a paid plan. Worded as "Limit reached" so it maps to the
+    // same PRECONDITION_FAILED handling the router already gives other plan limits.
+    const org = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      include: { subscription: { select: { planId: true } } },
+    })
+
+    if (!org || org.deletedAt) {
+      throw new Error('Organization not found')
+    }
+
+    const planId = resolveEffectivePlanId(org.subscription?.planId, org.oneTimePlanId)
+    if (planId === PLAN_IDS.free) {
+      throw new Error('Limit reached: Free plan does not include team invites. Upgrade to a paid plan to invite members.')
+    }
+
+    // 3. Check Limits
     const pendingInvites = await prisma.organizationInvite.count({
       where: {
         organizationId,
@@ -63,7 +81,7 @@ export class InvitationService {
       throw new Error(`Limit reached: Organization can only have ${LIMITS.MAX_PENDING_INVITES_PER_ORG} pending invites.`)
     }
 
-    // 3. Check if user is already a member
+    // 4. Check if user is already a member
     const existingMember = await prisma.organizationMember.findFirst({
       where: {
         organizationId,
@@ -77,7 +95,7 @@ export class InvitationService {
       throw new Error('User is already a member of this organization.')
     }
 
-    // 4. Resolve which workspaces this invite will grant access to.
+    // 5. Resolve which workspaces this invite will grant access to.
     // Defaults to every workspace the inviter can themselves access; an inviter can
     // never grant access to a workspace they can't see. Passing an explicit array
     // (including an empty one) overrides the default -- the inviter deliberately chose it.
@@ -102,7 +120,7 @@ export class InvitationService {
     const requestedWorkspaceIds = workspaceIds !== undefined ? workspaceIds : inviterAccessibleIds
     const grantedWorkspaceIds = requestedWorkspaceIds.filter((id) => inviterAccessibleIds.includes(id))
 
-    // 5. Create Invite
+    // 6. Create Invite
     const token = randomBytes(32).toString('hex')
     const expiresAt = new Date(Date.now() + INVITE_EXPIRATION_MS)
 
@@ -115,6 +133,10 @@ export class InvitationService {
         token,
         expiresAt,
         workspaceIds: grantedWorkspaceIds,
+        // Only meaningful when role === ADMIN; the caller (organization.ts's
+        // inviteMember) has already downgraded this to false unless the
+        // inviter is the OWNER, so it's safe to persist as given here.
+        canManageBilling: role === ROLES.ADMIN ? canManageBilling : false,
       },
       include: { inviter: true, organization: true },
     })
@@ -223,6 +245,7 @@ export class InvitationService {
           organizationId: invite.organizationId,
           userId,
           role: invite.role,
+          canManageBilling: invite.canManageBilling,
         },
       })
 

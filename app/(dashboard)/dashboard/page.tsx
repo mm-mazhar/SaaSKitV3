@@ -2,7 +2,7 @@
 
 import { CreateWorkspaceDialog } from '@/app/(dashboard)/_components/create-workspace-dialog'
 import { WorkspaceActions } from '@/app/(dashboard)/_components/workspace-actions'
-import { createClient } from '@/app/lib/supabase/server'
+import { getCachedUser } from '@/app/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { getRPCCaller } from '@/lib/orpc/rsc-client'
 import { Folder } from 'lucide-react'
@@ -15,8 +15,7 @@ export const revalidate = 0
 
 export default async function DashboardPage() {
   noStore()
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getCachedUser()
 
   if (!user) {
     return redirect('/get-started')

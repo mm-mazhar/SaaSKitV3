@@ -12,6 +12,7 @@ export interface AuthenticatedContext {
   db: typeof import('@/app/lib/db').default
   orgId: string | null
   role: OrganizationRole | null
+  canManageBilling: boolean
 }
 
 /**
@@ -78,6 +79,27 @@ export const adminProcedure = orgProcedure.use(async ({ context, next }) => {
     })
   }
   
+  return next()
+})
+
+/**
+ * Billing admin procedure - requires OWNER, or ADMIN with the owner-granted
+ * canManageBilling permission. Guards billingRouter's createSubscription,
+ * renewSubscription, and createCustomerPortal so an owner can invite admins
+ * for day-to-day management without automatically handing them the ability
+ * to buy/change subscriptions or open the Stripe billing portal -- plain
+ * adminProcedure made no such distinction.
+ */
+export const billingAdminProcedure = orgProcedure.use(async ({ context, next }) => {
+  const isOwner = context.role === ROLES.OWNER
+  const isBillingAdmin = context.role === ROLES.ADMIN && context.canManageBilling
+
+  if (!isOwner && !isBillingAdmin) {
+    throw new ORPCError('FORBIDDEN', {
+      message: 'Billing access required. Ask an organization owner to grant you billing permissions.',
+    })
+  }
+
   return next()
 })
 

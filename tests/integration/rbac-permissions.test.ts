@@ -3,7 +3,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { OrganizationService } from '@/lib/services/organization-service'
 import { ROLES } from '@/lib/constants'
-import { getCurrentOrgContext, requireOrgRole } from '@/lib/auth/guards'
+import { getCurrentOrgContext, requireOrgRole, getFallbackMembership } from '@/lib/auth/guards'
 import { can } from '@/lib/auth/permissions'
 import { TestUtils, testDb } from './setup'
 
@@ -350,6 +350,110 @@ describe('RBAC (Roles & Permissions)', () => {
       ).rejects.toThrow('Unauthorized: Not a member of this organization')
 
       await testDb.user.delete({ where: { id: outsider.id } })
+    })
+  })
+
+  describe('Test 2.5b: Soft-Deleted Organizations', () => {
+    // Regression test: a soft-deleted organization's OrganizationMember rows
+    // are intentionally left in place (deleteOrganization only sets
+    // Organization.deletedAt), but that membership must stop counting as
+    // "current" once the org is gone. Otherwise a stale current-org-id cookie
+    // left over from before the user deleted their active organization keeps
+    // validating in getCurrentOrgContext / oRPC context.ts, and every
+    // subsequent write against that cookie's org id fails deep inside
+    // whichever service happens to check org.deletedAt, surfacing as a
+    // confusing "Organization not found" instead of a clean "not a member".
+    it('should return null for a member of a soft-deleted organization via getCurrentOrgContext', async () => {
+      await setupOrgWithAllRoles()
+
+      await testDb.organization.update({
+        where: { id: organizationId },
+        data: { deletedAt: new Date() },
+      })
+
+      const role = await getCurrentOrgContext(organizationId, ownerUserId)
+      expect(role).toBeNull()
+    })
+
+    it('should throw for a member of a soft-deleted organization via requireOrgRole', async () => {
+      await setupOrgWithAllRoles()
+
+      await testDb.organization.update({
+        where: { id: organizationId },
+        data: { deletedAt: new Date() },
+      })
+
+      await expect(
+        requireOrgRole(organizationId, ownerUserId, ROLES.MEMBER)
+      ).rejects.toThrow('Unauthorized: Not a member of this organization')
+    })
+  })
+
+  describe('Test 2.5c: Fallback Membership Resolution', () => {
+    // getFallbackMembership backs the oRPC context's recovery path: when a
+    // current-org-id cookie is missing or stale, this is what picks "another
+    // organization the user actually belongs to" instead of leaving them
+    // with no org context.
+    it('prefers the primary organization over a more recently joined one', async () => {
+      const owner = await TestUtils.createTestUser(TestUtils.generateUniqueEmail('fallback-owner'))
+
+      const secondary = await OrganizationService.createOrganization(
+        owner.id,
+        'Secondary Org',
+        TestUtils.generateUniqueSlug('secondary-org')
+      )
+      // The user's very first org (created via setup helpers elsewhere) is
+      // usually primary; here we create a second, non-primary org for the
+      // same user and confirm it is NOT what fallback picks.
+      const primary = await OrganizationService.createOrganization(
+        owner.id,
+        'Primary Org',
+        TestUtils.generateUniqueSlug('primary-org')
+      )
+      await testDb.organization.update({
+        where: { id: primary.id },
+        data: { isPrimary: true },
+      })
+      await testDb.organization.update({
+        where: { id: secondary.id },
+        data: { isPrimary: false },
+      })
+
+      const fallback = await getFallbackMembership(owner.id)
+      expect(fallback?.organizationId).toBe(primary.id)
+      expect(fallback?.role).toBe(ROLES.OWNER)
+
+      await testDb.organization.deleteMany({ where: { id: { in: [primary.id, secondary.id] } } })
+      await testDb.user.delete({ where: { id: owner.id } })
+    })
+
+    it('ignores soft-deleted organizations', async () => {
+      const owner = await TestUtils.createTestUser(TestUtils.generateUniqueEmail('fallback-owner2'))
+
+      const org = await OrganizationService.createOrganization(
+        owner.id,
+        'Only Org',
+        TestUtils.generateUniqueSlug('only-org')
+      )
+      await testDb.organization.update({
+        where: { id: org.id },
+        data: { deletedAt: new Date() },
+      })
+
+      const fallback = await getFallbackMembership(owner.id)
+      expect(fallback).toBeNull()
+
+      await testDb.organization.deleteMany({ where: { id: org.id } })
+      await testDb.user.delete({ where: { id: owner.id } })
+    })
+
+    it('returns null for a user with no organizations at all', async () => {
+      const lonely = await TestUtils.createTestUser(TestUtils.generateUniqueEmail('fallback-lonely'))
+
+      const fallback = await getFallbackMembership(lonely.id)
+      expect(fallback).toBeNull()
+
+      await testDb.user.delete({ where: { id: lonely.id } })
     })
   })
 

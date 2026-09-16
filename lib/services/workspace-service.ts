@@ -1,7 +1,7 @@
 // lib/services/workspace-service.ts
 
 import prisma from '@/app/lib/db'
-import { getWorkspaceLimit, resolvePlanId, ROLES } from '@/lib/constants'
+import { getWorkspaceLimit, resolveEffectivePlanId, ROLES } from '@/lib/constants'
 
 export class WorkspaceService {
   static async createWorkspace(userId: string, organizationId: string, name: string, slug: string) {
@@ -14,6 +14,17 @@ export class WorkspaceService {
         throw new Error('Unauthorized: You are not a member of this organization.')
     }
 
+    // Defense in depth: the oRPC router already gates `workspace.create` on
+    // adminProcedure (ADMIN/OWNER), but this service is also called directly
+    // from app/(dashboard)/layout.tsx when auto-provisioning a brand-new
+    // org's first workspace -- that path is always OWNER context (the org's
+    // creator), so this check is a no-op there. It exists so a plain MEMBER
+    // can never create a workspace even if this service is ever called from
+    // somewhere that isn't behind adminProcedure.
+    if (membership.role !== ROLES.ADMIN && membership.role !== ROLES.OWNER) {
+        throw new Error('Unauthorized: Only admins and owners can create workspaces.')
+    }
+
     // 2. Check Limits (based on the organization's current pricing plan)
     const org = await prisma.organization.findUnique({
       where: { id: organizationId },
@@ -24,7 +35,7 @@ export class WorkspaceService {
       throw new Error('Organization not found')
     }
 
-    const planId = resolvePlanId(org.subscription?.planId)
+    const planId = resolveEffectivePlanId(org.subscription?.planId, org.oneTimePlanId)
     const workspaceLimit = getWorkspaceLimit(planId)
 
     const workspaceCount = await prisma.workspace.count({

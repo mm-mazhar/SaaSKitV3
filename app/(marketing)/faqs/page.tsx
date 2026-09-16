@@ -35,7 +35,7 @@ export default function FaqPage() {
         </h1>
 
         <p className='text-muted-foreground max-w-2xl text-center'>
-          Answers about reports, data sources, and how Auto VIN Scout fits into your buying process.
+          Answers about workspaces, teams, billing, and how everything fits together.
         </p>
       </div>
 
@@ -50,7 +50,7 @@ export default function FaqPage() {
 
       <div className='mx-auto mt-6 w-full max-w-3xl text-center'>
         <p className='text-muted-foreground mb-4'>
-          Need help with a specific VIN or report question?
+          Still have a question we didn’t cover?
         </p>
         <a
           href='/contact'

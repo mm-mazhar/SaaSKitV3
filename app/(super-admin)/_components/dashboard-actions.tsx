@@ -3,6 +3,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import { PLAN_IDS, PRICING_PLANS } from '@/lib/constants';
 import { Download, RotateCw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -51,10 +52,14 @@ export function DashboardActions({ data }: { data: AdminDashboardData }) {
     // 1. Summary Stats
     csvContent += `SUMMARY METRICS\n`;
     csvContent += `Metric,Value\n`;
+    const teamPlanTitle = PRICING_PLANS.find(p => p.id === PLAN_IDS.PLAN_B)?.title ?? 'Team';
+    const agencyPlanTitle = PRICING_PLANS.find(p => p.id === PLAN_IDS.PLAN_C)?.title ?? 'Agency';
+    const partnerPlanTitle = PRICING_PLANS.find(p => p.id === PLAN_IDS.PLAN_D)?.title ?? 'Partner';
+
     csvContent += `Total MRR,${stats.totalRevenue}\n`;
-    csvContent += `Dealer Plus (MRR),${stats.dealerPlusRevenue}\n`;
-    csvContent += `Dealer Core (MRR),${stats.dealerCoreRevenue}\n`;
-    csvContent += `Pro (MRR),${stats.proRevenue}\n`;
+    csvContent += `${partnerPlanTitle} (MRR),${stats.dealerPlusRevenue}\n`;
+    csvContent += `${agencyPlanTitle} (MRR),${stats.dealerCoreRevenue}\n`;
+    csvContent += `${teamPlanTitle} (MRR),${stats.proRevenue}\n`;
     csvContent += `Active Subscriptions,${stats.activeProCount + stats.activeDealerCoreCount + stats.activeDealerPlusCount}\n`;
     csvContent += `Total Users,${stats.totalUsers}\n`;
     csvContent += `Active Orgs,${stats.totalOrgs}\n\n`;

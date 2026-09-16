@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/breadcrumb'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { CREDIT_REMINDER_THRESHOLD, PLAN_IDS, type PlanId } from '@/lib/constants'
+import { CREDIT_REMINDER_THRESHOLD, PLAN_IDS, PRICING_PLANS, type PlanId } from '@/lib/constants'
 import {
   Bell,
   Building2,
@@ -118,16 +118,7 @@ export function TopBar({
         {usageInfo ? (
           (() => {
             const id = usageInfo.currentPlanId
-            const base =
-              id === PLAN_IDS.PLAN_D
-                ? 'Dealer Plus'
-                : id === PLAN_IDS.PLAN_C
-                  ? 'Dealer Core'
-                  : id === PLAN_IDS.PLAN_B
-                    ? 'Pro Plan'
-                    : id === PLAN_IDS.PLAN_A
-                      ? 'Basic Report'
-                      : 'Free'
+            const base = PRICING_PLANS.find((p) => p.id === id)?.title ?? 'Free'
             return (
               <Badge className='h-8 px-3 text-sm font-medium leading-none'>
                 {base}

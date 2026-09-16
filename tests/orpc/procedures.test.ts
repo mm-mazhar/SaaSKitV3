@@ -78,6 +78,32 @@ function checkOwnerAccess(
   return { allowed: true }
 }
 
+/**
+ * Mirrors billingAdminProcedure (lib/orpc/procedures.ts): OWNER always has
+ * billing access; ADMIN only with the owner-granted canManageBilling flag;
+ * MEMBER never, regardless of the flag (which should never be true for a
+ * MEMBER in the first place -- see updateMemberRole's demotion cleanup and
+ * setMemberBillingAccess's ADMIN-only target check, both of which exist to
+ * keep that invariant true).
+ */
+function checkBillingAdminAccess(
+  user: User | null,
+  orgId: string | null,
+  role: OrganizationRole | null,
+  canManageBilling: boolean
+): { allowed: boolean; error?: string } {
+  const orgCheck = checkOrgAccess(user, orgId, role)
+  if (!orgCheck.allowed) {
+    return orgCheck
+  }
+  const isOwner = role === ROLES.OWNER
+  const isBillingAdmin = role === ROLES.ADMIN && canManageBilling
+  if (!isOwner && !isBillingAdmin) {
+    return { allowed: false, error: 'FORBIDDEN' }
+  }
+  return { allowed: true }
+}
+
 function checkSuperAdminAccess(
   user: User | null,
   superAdminEmails: string[]
@@ -260,6 +286,55 @@ describe('Authorization Procedures Properties', () => {
         }),
         { numRuns: 100 }
       )
+    })
+  })
+
+  /**
+   * Property 11: Billing Admin Procedure Enforcement
+   * For any context, billing procedures SHALL allow OWNER unconditionally,
+   * allow ADMIN only when canManageBilling is true, and deny MEMBER always.
+   * **Validates: the owner-controlled billing-access permission**
+   */
+  describe('Property 11: Billing Admin Procedure Enforcement', () => {
+    it('always allows OWNER, regardless of canManageBilling', async () => {
+      await fc.assert(
+        fc.asyncProperty(userArbitrary, fc.uuid(), fc.boolean(), async (user, orgId, canManageBilling) => {
+          const result = checkBillingAdminAccess(user, orgId, ROLES.OWNER, canManageBilling)
+          expect(result.allowed).toBe(true)
+        }),
+        { numRuns: 100 }
+      )
+    })
+
+    it('allows ADMIN only when canManageBilling is granted', async () => {
+      await fc.assert(
+        fc.asyncProperty(userArbitrary, fc.uuid(), async (user, orgId) => {
+          const granted = checkBillingAdminAccess(user, orgId, ROLES.ADMIN, true)
+          expect(granted.allowed).toBe(true)
+
+          const notGranted = checkBillingAdminAccess(user, orgId, ROLES.ADMIN, false)
+          expect(notGranted.allowed).toBe(false)
+          expect(notGranted.error).toBe('FORBIDDEN')
+        }),
+        { numRuns: 100 }
+      )
+    })
+
+    it('denies MEMBER always, even if canManageBilling were somehow true', async () => {
+      await fc.assert(
+        fc.asyncProperty(userArbitrary, fc.uuid(), fc.boolean(), async (user, orgId, canManageBilling) => {
+          const result = checkBillingAdminAccess(user, orgId, ROLES.MEMBER, canManageBilling)
+          expect(result.allowed).toBe(false)
+          expect(result.error).toBe('FORBIDDEN')
+        }),
+        { numRuns: 100 }
+      )
+    })
+
+    it('denies access when org context is missing, before the role is even considered', async () => {
+      const result = checkBillingAdminAccess(null, null, null, true)
+      expect(result.allowed).toBe(false)
+      expect(result.error).toBe('UNAUTHORIZED')
     })
   })
 

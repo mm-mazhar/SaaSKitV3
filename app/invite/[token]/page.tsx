@@ -1,14 +1,13 @@
 // app/invite/[token]/page.tsx
 
 import { getData } from '@/app/lib/db'
-import { createClient } from '@/app/lib/supabase/server'
+import { getCachedUser } from '@/app/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { InviteClient } from './InviteClient'
 
 export default async function AcceptInvitePage(props: { params: Promise<{ token: string }> }) {
   const params = await props.params
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getCachedUser()
 
   if (!user) {
     return redirect(`/get-started?next=/invite/${params.token}`)

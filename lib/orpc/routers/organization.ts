@@ -9,6 +9,8 @@ import { ORPCError } from '../server'
 import { PRICING_PLANS, ROLES } from '@/lib/constants'
 import { sendInviteEmail, sendCancellationEmail } from '@/app/lib/email'
 import { isDisposableEmail } from '@/lib/email-validator'
+import { getFallbackMembership } from '@/lib/auth/guards'
+import { cookies } from 'next/headers'
 
 // Rate limiting state (in-memory for simplicity - in production use Redis)
 const inviteRateLimits = new Map<string, number>()
@@ -206,6 +208,54 @@ export const organizationRouter = {
     }),
 
   /**
+   * Grant or revoke an ADMIN's billing access (see billingAdminProcedure).
+   * OWNER-only -- this is deliberately not on adminProcedure, since the
+   * whole point is that an owner (not another admin) decides who else can
+   * buy/change subscriptions or open the Stripe billing portal.
+   */
+  setMemberBillingAccess: ownerProcedure
+    .input(z.object({
+      targetUserId: z.string(),
+      canManageBilling: z.boolean(),
+    }))
+    .route({
+      method: 'PATCH',
+      path: '/org/member/billing-access',
+      summary: 'Set member billing access',
+      description: "Grants or revokes an admin's ability to manage billing",
+    })
+    .handler(async ({ input, context }) => {
+      const targetMember = await context.db.organizationMember.findUnique({
+        where: {
+          organizationId_userId: {
+            organizationId: context.orgId,
+            userId: input.targetUserId,
+          },
+        },
+      })
+
+      if (!targetMember) {
+        throw new ORPCError('NOT_FOUND', { message: 'Member not found' })
+      }
+
+      if (targetMember.role !== ROLES.ADMIN) {
+        throw new ORPCError('FORBIDDEN', {
+          message: 'Billing access only applies to admins. Owners always have full access; members never do.',
+        })
+      }
+
+      return await context.db.organizationMember.update({
+        where: {
+          organizationId_userId: {
+            organizationId: context.orgId,
+            userId: input.targetUserId,
+          },
+        },
+        data: { canManageBilling: input.canManageBilling },
+      })
+    }),
+
+  /**
    * Get a member's workspace access, plus the full set of workspaces the CALLER
    * is allowed to grant (an ADMIN can only grant workspaces they can see themselves).
    */
@@ -286,6 +336,12 @@ export const organizationRouter = {
       // Workspaces the invited member will have access to once they accept.
       // Omit to default to every workspace the inviter can themselves access.
       workspaceIds: z.array(z.string()).optional(),
+      // Grants the invited ADMIN billing access (see billingAdminProcedure).
+      // Only the OWNER may actually set this to true -- an inviting ADMIN
+      // (inviteMember itself stays open to any ADMIN) requesting it is
+      // silently downgraded to false in the handler below, rather than
+      // rejected, so an ordinary invite by an admin still succeeds.
+      canManageBilling: z.boolean().optional().default(false),
     }))
     .route({
       method: 'POST',
@@ -315,6 +371,10 @@ export const organizationRouter = {
         })
       }
 
+      // Only the OWNER can grant billing access -- an ADMIN inviting another
+      // ADMIN can't hand out a permission they don't get to decide on.
+      const grantCanManageBilling = context.role === ROLES.OWNER ? input.canManageBilling : false
+
       try {
         console.log('📧 Creating invite...')
         const invite = await InvitationService.createInvite(
@@ -322,7 +382,8 @@ export const organizationRouter = {
           context.orgId,
           input.email,
           input.role,
-          input.workspaceIds
+          input.workspaceIds,
+          grantCanManageBilling
         )
         console.log('✅ Invite created successfully:', invite.id)
 
@@ -512,11 +573,24 @@ export const organizationRouter = {
           })
         }
 
-        // Transfer credits
-        await context.db.organization.update({
-          where: { id: input.transferToOrgId },
-          data: { credits: { increment: org.credits } },
-        })
+        // Transfer credits -- and zero the source org's balance in the same
+        // transaction. Soft-deleting an org does NOT clear `credits` on its
+        // own, so leaving it as-is meant a deleted org still shows its old
+        // balance forever. That's a real liability: if support ever restores
+        // a soft-deleted org for a user who changed their mind, it would come
+        // back with credits it no longer owns -- the same credits the target
+        // org already received and may have already spent, effectively
+        // duplicating them for free.
+        await context.db.$transaction([
+          context.db.organization.update({
+            where: { id: input.transferToOrgId },
+            data: { credits: { increment: org.credits } },
+          }),
+          context.db.organization.update({
+            where: { id: context.orgId },
+            data: { credits: 0 },
+          }),
+        ])
       }
 
       // Cancel Stripe subscription if exists
@@ -571,6 +645,38 @@ export const organizationRouter = {
       }
 
       // Soft delete the organization
-      return await OrganizationService.deleteOrganization(context.orgId)
+      const deletedOrgId = context.orgId
+      const deleted = await OrganizationService.deleteOrganization(deletedOrgId)
+
+      // Re-point the org/workspace cookies if they were pointing at the org we
+      // just deleted -- leaving them as-is (or merely clearing them) strands the
+      // user: a soft delete doesn't remove the OrganizationMember row, so a
+      // stale cookie still passes membership checks and gets silently used for
+      // the next mutation, which then fails deep inside whichever service
+      // happens to check org.deletedAt (e.g. "Organization not found" creating
+      // a workspace); and an *empty* cookie fails just as unhelpfully with
+      // "Organization context required" on every subsequent org-scoped action,
+      // even though the UI's own display-only fallback logic (dashboard
+      // page/layout) makes it look like a different org is already active.
+      // Instead, land the user on another organization they still belong to --
+      // same as what a fresh dashboard load would resolve to -- so deleting
+      // your active org never leaves you in a broken "no org" state.
+      try {
+        const cookieStore = await cookies()
+        if (cookieStore.get('current-org-id')?.value === deletedOrgId) {
+          const remaining = await getFallbackMembership(context.user.id)
+
+          if (remaining) {
+            cookieStore.set('current-org-id', remaining.organizationId)
+          } else {
+            cookieStore.delete('current-org-id')
+          }
+          cookieStore.delete('current-workspace-id')
+        }
+      } catch (cookieError) {
+        console.error('[org.delete] Failed to re-point stale org/workspace cookies:', cookieError)
+      }
+
+      return deleted
     }),
 }
