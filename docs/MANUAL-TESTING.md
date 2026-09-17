@@ -46,6 +46,7 @@ This document consolidates all manual tests required to verify Multi-Tenancy, RB
 - [ ] **Verify (UI):** Set `credits` columns in `Organization` table below `20` and check `Billing` page. Is it allowing to Re-new Subscription?
 - [ ] **Verify:** Email Recieved upon subscription.
 - [ ] **Action:** As Owner/Admin, Upgrade subscription to 'other plans'
+- [ ] **Verify:** Admin can be without financial access.
 
 ### ✅ Test 2.2: Subscription Logic
 **Goal:** Verify subscribing unlocks Pro features for the whole team.
@@ -243,3 +244,53 @@ For Production, Run in Browser DevTools Console:
 - [ ] **Run and Verify: `npm test tests/orpc`
 - [ ] **Run and Verify: `npm run test`
 - [ ] **Run and Verify: `npx vitest run --reporter=verbose 2>&1`
+
+---
+
+## 10. Workspace, Billing Delegation & Plan-Visibility Changes (Added: Sept 2026 session)
+
+These items surfaced once workspace creation, billing access, and pricing plans got tied together more tightly. Automated tests cover the logic, but the items below are worth clicking through manually since this area has produced real bugs before (workspace creation by Members, stale plan badges, disabled plans still showing in the UI).
+
+### ✅ Test 10.1: Workspace Creation Locked to Admin/Owner
+**Goal:** Verify a `MEMBER` cannot create a workspace even by calling the API directly, not just that the button is hidden.
+- [ ] **Setup:** Log in as a `MEMBER` of an organization (see Test 3.1 setup).
+- [ ] **Verify (UI):** The "Create Workspace" control is hidden or disabled for the Member.
+- [ ] **Verify (Security):** With the Member's session, attempt to hit the workspace-create endpoint directly (e.g. via browser devtools/network replay or a REST client). It should be rejected (403/Forbidden), not silently create a workspace.
+- [ ] **Verify (UI, Admin/Owner):** Logged in as `ADMIN` or `OWNER`, workspace creation still works normally.
+
+### ✅ Test 10.2: Plan Badge Reflects Correct Source (One-Time vs Subscription)
+**Goal:** Verify the dashboard plan badge doesn't get "stuck" on an old one-time plan after upgrading to a subscription.
+- [ ] **Action:** As Owner, buy the **Starter (One-time)** plan for an Organization.
+- [ ] **Verify (UI):** Badge shows "Starter".
+- [ ] **Verify (DB):** `Organization.oneTimePlanId` is set to the Starter plan id.
+- [ ] **Action:** From the same Organization, subscribe to **Team** or **Agency** (a recurring plan).
+- [ ] **Verify (UI):** Badge now shows the new subscription plan ("Team"/"Agency"), not "Starter".
+- [ ] **Verify (DB):** `Organization.oneTimePlanId` is cleared (`null`) once the subscription webhook processes. `Subscription.planId` reflects the new plan.
+
+### ✅ Test 10.3: Owner-Controlled Billing Access for Admins
+**Goal:** Verify an Owner can delegate billing management to a specific Admin, and that it can be revoked.
+- [ ] **Setup:** As Owner, invite a new member and check the "Allow billing management" (or equivalent) option while setting their role to `ADMIN`.
+- [ ] **Verify (UI):** After the invite is accepted, that Admin CAN access `/dashboard/billing` and perform billing actions (upgrade/cancel), even though they are not the Owner.
+- [ ] **Verify (DB):** `OrganizationMember.canManageBilling` is `true` for that member.
+- [ ] **Action:** As Owner, toggle the billing-access permission OFF for that Admin from Organization Settings (without changing their role).
+- [ ] **Verify (UI):** That Admin immediately loses access to `/dashboard/billing` (redirected, same as a plain Member would be).
+- [ ] **Action:** As Owner, demote that same user from `ADMIN` to `MEMBER`.
+- [ ] **Verify (DB):** `canManageBilling` is cleared back to `false` on demotion (shouldn't silently persist for a Member).
+- [ ] **Verify (Security):** A plain `MEMBER` (never granted the flag) still cannot access `/dashboard/billing`, matching Test 3.1.
+
+### ✅ Test 10.4: Partner Plan Kill-Switch (`PARTNER_PLAN_ENABLED`)
+**Goal:** Verify turning the Partner plan off (`PARTNER_PLAN_ENABLED = false` in `lib/constants.ts`) cleanly hides it everywhere a *new* purchase could happen, without breaking existing Partner subscribers or the page layouts.
+- [ ] **Setup:** Set `PARTNER_PLAN_ENABLED` to `false` and restart the dev server.
+- [ ] **Verify (UI - Marketing):** On the public pricing page (`/`), the Partner card is gone, and the remaining plan cards resize/re-center nicely (no leftover empty column, no awkward stretched/squashed card).
+- [ ] **Verify (UI - Billing Page):** On `/dashboard/billing`, the "Upgrade to Partner" card is gone from the upgrade section, and the grid of remaining upgrade cards re-flows (2 or 3 cards look intentional, not like a 4-column grid with a gap).
+- [ ] **Verify (UI - Nav Dropdown):** The user-nav "Upgrade to Partner" prompt in the sidebar dropdown no longer appears for an Agency-plan org (it should now either show nothing or the next real upgrade target).
+- [ ] **Verify (Security):** Attempt to subscribe to the Partner plan directly via the API/network tab (bypassing the hidden UI). It should be rejected, not silently charge/create a subscription.
+- [ ] **Verify (Existing Subscribers):** An organization that was already on the Partner plan *before* the flag was disabled keeps its badge, credits, and billing page working normally (it should NOT be forced to downgrade or show broken UI).
+- [ ] **Cleanup:** Set `PARTNER_PLAN_ENABLED` back to `true` and confirm the Partner card reappears everywhere above.
+
+### ✅ Test 10.5: Dashboard Load / Session Consistency
+**Goal:** Sanity-check the request-level auth caching (`getCachedUser`) didn't introduce stale-session or cookie glitches.
+- [ ] **Action:** Log in, then navigate across several dashboard pages in a row (Dashboard → Billing → Settings → Organization Settings) using the sidebar links.
+- [ ] **Verify (UI):** No flicker back to a logged-out/redirect state, no "wrong organization" flash, and pages feel noticeably snappier than a full re-auth round trip on every page.
+- [ ] **Action:** Open a second tab to the dashboard while the first tab is still open.
+- [ ] **Verify (UI):** Both tabs show the same logged-in user/organization; logging out in one tab and refreshing the other correctly reflects the logged-out state (no stale cached session bleeding across page loads).

@@ -32,19 +32,19 @@ export class TestUtils {
   }
 
   static async cleanupUser(userId: string) {
-    // Clean up in proper order to respect foreign key constraints
-    
-    // 1. Delete organization invites
-    await testDb.organizationInvite.deleteMany({
-      where: { inviterId: userId },
-    })
-
-    // 2. Delete organization memberships
-    await testDb.organizationMember.deleteMany({
-      where: { userId },
-    })
-
-    // 3. Delete workspaces from organizations owned by this user
+    // Clean up in proper order to respect foreign key constraints.
+    //
+    // BUG THIS FIXES: the organization lookup below (by `members: { some:
+    // { userId } }`) has to run BEFORE the OrganizationMember rows for this
+    // user are deleted -- the old version deleted memberships first and then
+    // used that same now-empty relation to find organizations to delete, so
+    // it always found zero and every organization a test user ever owned
+    // was silently left behind. That's a real, confirmed leak: the shared
+    // dev database this suite runs against had accumulated 270+ orphaned
+    // test organizations (and their now-unreachable subscriptions) against
+    // only 2 real users, which bloats every query these tests run and is a
+    // very plausible contributor to the hook timeouts / flakiness seen when
+    // running the full suite under load.
     const userOrganizations = await testDb.organization.findMany({
       where: {
         members: {
@@ -53,21 +53,35 @@ export class TestUtils {
       },
       select: { id: true },
     })
+    const organizationIds = userOrganizations.map((org) => org.id)
 
-    for (const org of userOrganizations) {
+    // 1. Delete organization invites (both ones this user sent, and any
+    // belonging to an organization we're about to delete below).
+    await testDb.organizationInvite.deleteMany({
+      where: {
+        OR: [{ inviterId: userId }, { organizationId: { in: organizationIds } }],
+      },
+    })
+
+    // 2. Delete workspaces from organizations owned by this user
+    if (organizationIds.length > 0) {
       await testDb.workspace.deleteMany({
-        where: { organizationId: org.id },
+        where: { organizationId: { in: organizationIds } },
       })
     }
 
-    // 4. Delete organizations
-    await testDb.organization.deleteMany({
-      where: {
-        members: {
-          some: { userId },
-        },
-      },
+    // 3. Delete organization memberships
+    await testDb.organizationMember.deleteMany({
+      where: { userId },
     })
+
+    // 4. Delete organizations (captured above, before their memberships
+    // were deleted)
+    if (organizationIds.length > 0) {
+      await testDb.organization.deleteMany({
+        where: { id: { in: organizationIds } },
+      })
+    }
 
     // 5. Finally delete the user
     await testDb.user.delete({
