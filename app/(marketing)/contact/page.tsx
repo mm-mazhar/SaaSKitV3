@@ -67,6 +67,7 @@ export default function ContactPage() {
                   variant='ghost'
                   size='icon-sm'
                   onClick={() => copy(APP_EMAIL)}
+                  aria-label="Copy email address"
                 >
                   <Copy className='size-4' />
                 </Button>
@@ -97,6 +98,7 @@ export default function ContactPage() {
                     variant='ghost'
                     size='icon-sm'
                     onClick={() => copy(APP_PHONE_1)}
+                    aria-label="Copy phone number"
                   >
                     <Copy className='size-4' />
                   </Button>
@@ -107,6 +109,7 @@ export default function ContactPage() {
                     variant='ghost'
                     size='icon-sm'
                     onClick={() => copy(APP_PHONE_2)}
+                    aria-label="Copy alternate phone number"
                   >
                     <Copy className='size-4' />
                   </Button>

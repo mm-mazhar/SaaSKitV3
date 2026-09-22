@@ -27,6 +27,8 @@ export default async function OrgDetailPage(props: { params: Promise<{ id: strin
 
   if (!org) return notFound();
 
+  const isOnPaidPlan = org.subscription?.status === 'active';
+
   let invoices: {
     id: string;
     amount_paid: number;
@@ -53,7 +55,7 @@ export default async function OrgDetailPage(props: { params: Promise<{ id: strin
   return (
     <div className="flex flex-col p-4 md:p-8 gap-6">
       <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" asChild className="h-8 w-8">
+        <Button variant="outline" size="icon" asChild className="h-8 w-8" aria-label="Back to organizations">
           <Link href="/admin/organizations"><ArrowLeft className="h-4 w-4" /></Link>
         </Button>
         <div>
@@ -63,12 +65,12 @@ export default async function OrgDetailPage(props: { params: Promise<{ id: strin
         <div className="ml-auto flex gap-2">
           <Badge
             className={`h-7 px-3 text-xs font-medium border ${
-              org.isOnPaidPlan
+              isOnPaidPlan
                 ? 'bg-primary/10 text-primary border-primary/20'
                 : 'bg-muted text-muted-foreground border-border'
             }`}
           >
-            {org.isOnPaidPlan ? 'Pro Plan' : 'Free Plan'}
+            {isOnPaidPlan ? 'Pro Plan' : 'Free Plan'}
           </Badge>
         </div>
       </div>

@@ -3,6 +3,8 @@
 import prisma from '@/app/lib/db'
 import { randomBytes } from 'crypto'
 import { INVITE_EXPIRATION_MS, LIMITS, LOCAL_SITE_URL, OrganizationRole, PLAN_IDS, PRODUCTION_URL, ROLES, SITE_URL, CHECK_DISPOSABLE_EMAILS, resolveEffectivePlanId } from '../constants'
+import { ANALYTICS_EVENTS } from '../analytics/events'
+import { captureServer, flushAnalyticsAfterResponse } from '../analytics/posthog-server'
 import { isDisposableEmail } from '../email-validator'
 import { WorkspaceAccessService } from './workspace-access-service'
 
@@ -230,7 +232,7 @@ export class InvitationService {
     }
 
     // Transaction to add member and update invite
-    return await prisma.$transaction(async (tx) => {
+    const joinedMember = await prisma.$transaction(async (tx) => {
       // Check member limit again inside transaction just in case
       const memberCount = await tx.organizationMember.count({
         where: { organizationId: invite.organizationId },
@@ -268,6 +270,24 @@ export class InvitationService {
 
       return member
     })
+
+    // Captured here rather than at the call sites because three of them --
+    // the magic-link callback, the OAuth callback, and the /invite page's
+    // server action -- all funnel through this one method, and only the
+    // transaction above distinguishes a real join from the "already a
+    // member" early return higher up.
+    captureServer({
+      event: ANALYTICS_EVENTS.MEMBER_JOINED,
+      distinctId: userId,
+      organizationId: joinedMember.organizationId,
+      properties: {
+        role: joinedMember.role,
+        workspace_count: invite.workspaceIds.length,
+      },
+    })
+    await flushAnalyticsAfterResponse()
+
+    return joinedMember
   }
 
   static async revokeInvite(inviteId: string) {

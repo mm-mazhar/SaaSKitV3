@@ -13,7 +13,8 @@ import {
 } from '@/components/page-section';
 import { Badge } from '@/components/ui/badge';
 // Spotlight removed (background animation disabled)
-import { motion, useInView } from 'framer-motion';
+import { motion } from 'motion/react';
+import { useInView } from 'react-intersection-observer';
 import {
   Globe,
   Heart,
@@ -91,8 +92,8 @@ export default function AboutUs1() {
   const missionRef = useRef(null);
   const valuesRef = useRef(null);
 
-  const missionInView = useInView(missionRef, { once: true, amount: 0.3 });
-  const valuesInView = useInView(valuesRef, { once: true, amount: 0.3 });
+  const { ref: missionRefSetter, inView: missionInView } = useInView({ triggerOnce: true, threshold: 0.3 });
+  const { ref: valuesRefSetter, inView: valuesInView } = useInView({ triggerOnce: true, threshold: 0.3 });
 
   return (
     <PageSection
@@ -123,7 +124,7 @@ export default function AboutUs1() {
         </motion.div>
 
         {/* Mission & Vision Section */}
-        <div ref={missionRef} className={`relative mb-8 ${MARKETING_ALIGNED_CONTENT_WIDTH}`}>
+        <div ref={missionRefSetter} className={`relative mb-8 ${MARKETING_ALIGNED_CONTENT_WIDTH}`}>
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             animate={
@@ -182,7 +183,7 @@ export default function AboutUs1() {
           </motion.div>
         </div>
 
-        <div ref={valuesRef} className={MARKETING_ALIGNED_CONTENT_WIDTH}>
+        <div ref={valuesRefSetter} className={MARKETING_ALIGNED_CONTENT_WIDTH}>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={

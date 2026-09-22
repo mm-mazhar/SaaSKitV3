@@ -1,5 +1,7 @@
 // app/(dashboard)/layout.tsx
 
+import { AnalyticsOrganization } from '@/app/(dashboard)/_components/analytics-organization'
+import { planTitleFor } from '@/lib/analytics/plan-change'
 import { ClientAppSidebar } from '@/app/(dashboard)/_components/ClientAppSidebar'
 import { SidebarProvider } from '@/app/(dashboard)/_components/sidebar'
 import { TopBar } from '@/app/(dashboard)/_components/topbar'
@@ -162,9 +164,16 @@ async function DashboardGroupLayout({ children }: { children: ReactNode }) {
     role: currentOrganization.members[0]?.role || 'MEMBER'
   } : null
 
+  const effectivePlanTitle = planTitleFor(effectivePlan)
+
   return (
     <QueryProvider>
       <ToastProvider>
+        <AnalyticsOrganization
+          organizationId={mappedCurrentOrg?.id ?? null}
+          name={mappedCurrentOrg?.name ?? null}
+          plan={effectivePlanTitle}
+        />
         <SidebarProvider
           defaultOpen={initialOpen}
           style={{ '--sidebar-width-icon': '3.25rem' } as CSSProperties}

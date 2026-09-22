@@ -4,7 +4,7 @@
 
 // import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'motion/react'
 import { MinusIcon, PlusIcon } from 'lucide-react'
 import { useState } from 'react'
 

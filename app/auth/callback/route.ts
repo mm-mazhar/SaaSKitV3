@@ -4,6 +4,8 @@
 
 import { getData } from '@/app/lib/db'
 import { createClient } from '@/app/lib/supabase/server'
+import { ANALYTICS_EVENTS } from '@/lib/analytics/events'
+import { captureServer, flushAnalyticsAfterResponse } from '@/lib/analytics/posthog-server'
 import { InvitationService } from '@/lib/services/invitation-service'
 import { OrganizationService } from '@/lib/services/organization-service'
 import { type EmailOtpType } from '@supabase/supabase-js'
@@ -45,7 +47,19 @@ export async function GET(request: Request) {
           if (!dbUser?.createdAt) {
              console.error('[Auth Callback] Warning: User was not persisted to DB. Invite acceptance might fail.')
           }
-          
+
+          // First verified session for this account. getData is the shared
+          // upsert both auth flows already go through, so this is the only
+          // point that can tell a signup from a returning sign-in.
+          if (dbUser?.isNewUser) {
+            captureServer({
+              event: ANALYTICS_EVENTS.USER_SIGNED_UP,
+              distinctId: user.id,
+              properties: { method: 'magic_link', email: user.email },
+            })
+          }
+          await flushAnalyticsAfterResponse()
+
           // Check for invite token in URL or Cookie
           let inviteToken: string | null = null
           const inviteMatch = next.match(/\/invite\/([a-f0-9]{32,})/)
@@ -111,6 +125,22 @@ export async function GET(request: Request) {
           if (!dbUser?.createdAt) {
              console.error('[Auth Callback OAuth] Warning: User was not persisted to DB. Invite acceptance might fail.')
           }
+
+          const provider = user.app_metadata?.provider ?? 'unknown'
+          captureServer({
+            event: ANALYTICS_EVENTS.OAUTH_COMPLETED,
+            distinctId: user.id,
+            properties: { provider, email: user.email },
+          })
+          if (dbUser?.isNewUser) {
+            captureServer({
+              event: ANALYTICS_EVENTS.USER_SIGNED_UP,
+              distinctId: user.id,
+              properties: { method: 'oauth', provider, email: user.email },
+            })
+          }
+          await flushAnalyticsAfterResponse()
+
           // Regex to match /invite/TOKEN (allowing absolute URLs or relative paths)
           let inviteToken: string | null = null
           const inviteMatch = next.match(/\/invite\/([a-f0-9]{32,})/)

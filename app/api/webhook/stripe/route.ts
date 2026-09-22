@@ -3,7 +3,20 @@
 import prisma from '@/app/lib/db'
 import { sendCancellationEmail, sendPaymentConfirmationEmail } from '@/app/lib/email'
 import { stripe } from '@/app/lib/stripe'
-import { ENABLE_EMAILS, LOCAL_SITE_URL, PRICING_PLANS, PRODUCTION_URL } from '@/lib/constants'
+import { ANALYTICS_EVENTS } from '@/lib/analytics/events'
+import { classifyPlanChange, planTitleFor } from '@/lib/analytics/plan-change'
+import {
+  captureServer,
+  flushAnalytics,
+  organizationDistinctId,
+} from '@/lib/analytics/posthog-server'
+import {
+  ENABLE_EMAILS,
+  LOCAL_SITE_URL,
+  PRICING_PLANS,
+  PRODUCTION_URL,
+  resolvePlanId,
+} from '@/lib/constants'
 import { headers } from 'next/headers'
 import Stripe from 'stripe'
 
@@ -34,7 +47,26 @@ async function getOrgOwner(orgId: string): Promise<{ email: string; name: string
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: Request): Promise<Response> {
+  try {
+    return await handleStripeWebhook(req)
+  } finally {
+    // Every return path in handleStripeWebhook drains here, including the
+    // early `return new Response(..., { status: 500 })` bail-outs and an
+    // unexpected throw. That matters more here than anywhere else in the app:
+    // this runs on a Vercel serverless function that is frozen the moment the
+    // response is sent, and a webhook is the only place where a dropped event
+    // is unrecoverable -- Stripe will not resend a 2xx'd event, and there is
+    // no user to retry the action.
+    //
+    // Deliberately an inline await rather than the after() helper the
+    // user-facing paths use: nobody is waiting on this response, so there is
+    // no latency to protect, and awaiting is the stronger guarantee.
+    await flushAnalytics()
+  }
+}
+
+async function handleStripeWebhook(req: Request): Promise<Response> {
   const body = await req.text()
   const signature = (await headers()).get('stripe-signature') as string
 
@@ -94,7 +126,7 @@ export async function POST(req: Request) {
       // Verify organization exists before proceeding
       const existingOrg = await prisma.organization.findUnique({
         where: { id: orgId },
-        select: { id: true, stripeCustomerId: true }
+        select: { id: true, name: true, stripeCustomerId: true }
       })
 
       if (!existingOrg) {
@@ -267,6 +299,22 @@ export async function POST(req: Request) {
           console.error('[Stripe Webhook] ❌ Error processing one-time payment credits:', error)
         }
       }
+
+      // getStripeSession puts the purchasing user's id in session metadata,
+      // so a checkout started from the dashboard is attributed to the person
+      // who started it rather than to a synthetic account-level actor.
+      captureServer({
+        event: ANALYTICS_EVENTS.CHECKOUT_COMPLETED,
+        distinctId: session.metadata?.userId || organizationDistinctId(orgId),
+        organizationId: orgId,
+        properties: {
+          mode: session.mode,
+          amount_total: session.amount_total,
+          currency: session.currency,
+          is_subscription: Boolean(subscriptionId),
+        },
+        organizationProperties: { name: existingOrg.name },
+      })
 
       console.log(`[Stripe Webhook] ✅ Checkout completed successfully`)
     } catch (error) {
@@ -521,6 +569,26 @@ export async function POST(req: Request) {
       const plan = PRICING_PLANS.find((pl) => pl.stripePriceId === priceId)
       const creditsToAdd = plan?.credits ?? 0
 
+      // billing_reason is the existing signal this handler already uses to
+      // tell a first invoice apart from a renewal (see the confirmation email
+      // below), so it needs no new state to decide what "created" means.
+      // Placed above the credits guard so a zero-credit plan still reports.
+      if (invoice.billing_reason === 'subscription_create') {
+        captureServer({
+          event: ANALYTICS_EVENTS.SUBSCRIPTION_CREATED,
+          distinctId: organizationDistinctId(org.id),
+          organizationId: org.id,
+          properties: {
+            plan: plan?.title ?? null,
+            stripe_price_id: priceId,
+            interval: String(stripeSubscription.items.data[0].price.recurring?.interval || 'month'),
+            amount_paid: invoice.amount_paid,
+            currency: invoice.currency,
+          },
+          organizationProperties: { name: org.name, plan: plan?.title ?? null },
+        })
+      }
+
       if (creditsToAdd > 0) {
         console.log(`  Plan: ${plan?.title}`)
         console.log(`  Credits to add: ${creditsToAdd}`)
@@ -593,6 +661,18 @@ export async function POST(req: Request) {
     
     console.log(`[Stripe Webhook] 🔄 customer.subscription.updated: ${sub.id}`)
 
+    // Read before the write below overwrites planId. Stripe's
+    // previous_attributes would be free, but its shape for nested `items`
+    // is not guaranteed, whereas the row we are about to replace is.
+    const priorSubscription = await prisma.subscription.findUnique({
+      where: { stripeSubscriptionId: fresh.id },
+      select: {
+        planId: true,
+        organizationId: true,
+        organization: { select: { name: true } },
+      },
+    })
+
     try {
       await prisma.subscription.update({
         where: { stripeSubscriptionId: fresh.id },
@@ -609,6 +689,39 @@ export async function POST(req: Request) {
         console.log(`[Stripe Webhook] ⚠️  Subscription ${fresh.id} not found in DB`)
       } else {
         console.error('[Stripe Webhook] ❌ Update failed:', error)
+      }
+    }
+
+    // organizationId is nullable on Subscription, and an org-scoped event
+    // without a tenant is worse than no event -- it would land in the
+    // ungrouped bucket and quietly skew per-organization plan movement.
+    if (priorSubscription?.organizationId) {
+      const nextPriceId = fresh.items.data[0].price.id
+      const change = classifyPlanChange(priorSubscription.planId, nextPriceId)
+
+      // A plan change is only one of many reasons Stripe emits
+      // subscription.updated (cancellation scheduling, payment-method
+      // changes, period rollovers), so 'unchanged' is the common case and
+      // must stay silent rather than becoming a meaningless event.
+      if (change.kind !== 'unchanged') {
+        captureServer({
+          event:
+            change.kind === 'upgraded'
+              ? ANALYTICS_EVENTS.SUBSCRIPTION_UPGRADED
+              : ANALYTICS_EVENTS.SUBSCRIPTION_DOWNGRADED,
+          distinctId: organizationDistinctId(priorSubscription.organizationId),
+          organizationId: priorSubscription.organizationId,
+          properties: {
+            from_plan: planTitleFor(change.from),
+            to_plan: planTitleFor(change.to),
+            stripe_price_id: nextPriceId,
+            interval: String(fresh.items.data[0].price.recurring?.interval || 'month'),
+          },
+          organizationProperties: {
+            name: priorSubscription.organization?.name ?? null,
+            plan: planTitleFor(change.to),
+          },
+        })
       }
     }
 
@@ -669,13 +782,20 @@ export async function POST(req: Request) {
 
     console.log(`[Stripe Webhook] 🗑️  customer.subscription.deleted: ${sub.id}`)
 
+    let canceled: { organizationId: string | null; planId: string } | null = null
+
     try {
-      await prisma.subscription.update({
+      // The update already resolves the organization this subscription
+      // belonged to; reusing its return value avoids a second lookup and
+      // keeps the event working when ENABLE_EMAILS is off (the org lookup
+      // further down only runs inside the email block).
+      canceled = await prisma.subscription.update({
         where: { stripeSubscriptionId: sub.id },
         data: {
           status: sub.status,
           currentPeriodEnd: (sub as unknown as PeriodFields).current_period_end ?? undefined,
         },
+        select: { organizationId: true, planId: true },
       })
     } catch (error) {
       if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
@@ -683,6 +803,23 @@ export async function POST(req: Request) {
       } else {
         console.error('[Stripe Webhook] ❌ Update failed:', error)
       }
+    }
+
+    if (canceled?.organizationId) {
+      // No organizationProperties: the group's `plan` should not be rewritten
+      // to a plan the organization no longer holds, and the org may still
+      // have a one-time plan recorded. The plan that ended is an event
+      // property instead.
+      captureServer({
+        event: ANALYTICS_EVENTS.SUBSCRIPTION_CANCELED,
+        distinctId: organizationDistinctId(canceled.organizationId),
+        organizationId: canceled.organizationId,
+        properties: {
+          plan: planTitleFor(resolvePlanId(canceled.planId)),
+          stripe_price_id: canceled.planId,
+          status: sub.status,
+        },
+      })
     }
 
     if (ENABLE_EMAILS) {
@@ -713,6 +850,50 @@ export async function POST(req: Request) {
         console.error('[Stripe Webhook] ❌ Final email failed:', error)
       }
     }
+  }
+
+  // ============================================================
+  // 5. INVOICE PAYMENT FAILED
+  // Purpose: analytics only.
+  //
+  // This kit has no dunning logic -- no DB writes, no emails, no entitlement
+  // changes happen on a failed payment today. This branch exists solely so
+  // involuntary churn is measurable, and deliberately does nothing else. When
+  // real dunning handling is added, it belongs here and this capture should
+  // move to its success point.
+  // ============================================================
+  if (event.type === 'invoice.payment_failed') {
+    const invoice = event.data.object as Stripe.Invoice
+    const customerId = typeof invoice.customer === 'string' ? invoice.customer : null
+
+    console.log(`[Stripe Webhook] ⚠️  invoice.payment_failed: ${invoice.id}`)
+
+    let failedOrgId: string | null = null
+    if (customerId) {
+      try {
+        const org = await prisma.organization.findUnique({
+          where: { stripeCustomerId: customerId },
+          select: { id: true },
+        })
+        failedOrgId = org?.id ?? null
+      } catch (error) {
+        console.error('[Stripe Webhook] ❌ payment_failed org lookup failed:', error)
+      }
+    }
+
+    captureServer({
+      event: ANALYTICS_EVENTS.PAYMENT_FAILED,
+      distinctId: failedOrgId
+        ? organizationDistinctId(failedOrgId)
+        : `stripe_customer:${customerId ?? 'unknown'}`,
+      organizationId: failedOrgId,
+      properties: {
+        amount_due: invoice.amount_due,
+        currency: invoice.currency,
+        attempt_count: invoice.attempt_count,
+        billing_reason: invoice.billing_reason,
+      },
+    })
   }
 
   return new Response(null, { status: 200 })

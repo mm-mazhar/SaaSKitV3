@@ -6,7 +6,10 @@ import { InvitationService } from '@/lib/services/invitation-service'
 import { WorkspaceAccessService } from '@/lib/services/workspace-access-service'
 import { protectedProcedure, adminProcedure, ownerProcedure } from '../procedures'
 import { ORPCError } from '../server'
-import { PRICING_PLANS, ROLES } from '@/lib/constants'
+import { PLAN_IDS, PRICING_PLANS, ROLES } from '@/lib/constants'
+import { ANALYTICS_EVENTS } from '@/lib/analytics/events'
+import { planTitleFor } from '@/lib/analytics/plan-change'
+import { captureServer, flushAnalyticsAfterResponse } from '@/lib/analytics/posthog-server'
 import { sendInviteEmail, sendCancellationEmail } from '@/app/lib/email'
 import { isDisposableEmail } from '@/lib/email-validator'
 import { getFallbackMembership } from '@/lib/auth/guards'
@@ -52,11 +55,28 @@ export const organizationRouter = {
       const slug = generateSlug(input.name, context.user.id)
       
       try {
-        return await OrganizationService.createOrganization(
+        const organization = await OrganizationService.createOrganization(
           context.user.id,
           input.name,
           slug
         )
+
+        // A newly created organization is always on the free plan -- there is
+        // no purchase path that creates one -- so seeding the group record
+        // here gives every tenant a plan from its first event onward.
+        captureServer({
+          event: ANALYTICS_EVENTS.ORGANIZATION_CREATED,
+          distinctId: context.user.id,
+          organizationId: organization.id,
+          properties: { is_primary: organization.isPrimary },
+          organizationProperties: {
+            name: organization.name,
+            plan: planTitleFor(PLAN_IDS.free),
+          },
+        })
+        await flushAnalyticsAfterResponse()
+
+        return organization
       } catch (error) {
         if (error instanceof Error && error.message.includes('Limit reached')) {
           throw new ORPCError('PRECONDITION_FAILED', { message: error.message })
@@ -407,6 +427,22 @@ export const organizationRouter = {
           console.error('⚠️ Failed to send invite email:', emailError)
           // Don't throw - invite was created successfully, email failure shouldn't block
         }
+
+        // Deliberately no invitee email on the event: the invitee has not
+        // signed up, and an org-scoped analytics event is the wrong place to
+        // create a profile for someone who may never accept. The accepting
+        // user is identified properly by member_joined.
+        captureServer({
+          event: ANALYTICS_EVENTS.MEMBER_INVITED,
+          distinctId: context.user.id,
+          organizationId: context.orgId,
+          properties: {
+            role: input.role,
+            can_manage_billing: grantCanManageBilling,
+            workspace_count: invite.workspaceIds.length,
+          },
+        })
+        await flushAnalyticsAfterResponse()
 
         // Update rate limit
         inviteRateLimits.set(rateLimitKey, Date.now())

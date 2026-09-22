@@ -3,7 +3,7 @@
 'use client';
 
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { MinusIcon, PlusIcon } from 'lucide-react';

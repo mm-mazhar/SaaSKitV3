@@ -56,6 +56,15 @@ export type DbUser = {
   createdAt?: Date
   colorScheme?: string
   themePreference?: string
+  /**
+   * True only on the call that actually inserted this user row.
+   *
+   * getData is upsert-shaped and runs on every auth callback, so callers
+   * cannot otherwise tell a first-ever sign-in apart from the hundredth. The
+   * auth callback uses this to decide whether the session is a signup. It is
+   * derived, not persisted, and is absent on every read path.
+   */
+  isNewUser?: boolean
 }
 
 export async function getData(userData?: UserData | string): Promise<DbUser | null> {
@@ -168,7 +177,7 @@ export async function getData(userData?: UserData | string): Promise<DbUser | nu
           },
           select: selection,
         })
-        return created
+        return { ...created, isNewUser: true }
       } catch (error) {
         console.error('[DB] Failed to create user:', error)
         // if create fails (db down), return minimal object for UI

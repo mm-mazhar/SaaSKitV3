@@ -47,6 +47,7 @@ describe('organization.delete: credit transfer', () => {
         db: testDb,
         orgId,
         role: ROLES.OWNER,
+        canManageBilling: true,
       },
     }) as { org: { delete: (input: { transferToOrgId?: string }) => Promise<unknown> } }
 

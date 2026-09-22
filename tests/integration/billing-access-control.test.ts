@@ -14,6 +14,7 @@ import { appRouter } from '@/lib/orpc/root'
 import { OrganizationService } from '@/lib/services/organization-service'
 import { InvitationService } from '@/lib/services/invitation-service'
 import { ROLES, PLAN_IDS } from '@/lib/constants'
+import type { OrganizationRole } from '@/lib/constants'
 import { TestUtils, testDb } from './setup'
 
 describe('Owner-controlled billing access', () => {
@@ -59,13 +60,14 @@ describe('Owner-controlled billing access', () => {
     return { owner, admin, org }
   }
 
-  function callAs(userId: string, role: string) {
+  function callAs(userId: string, role: OrganizationRole) {
     return createRouterClient(appRouter, {
       context: {
         user: { id: userId } as never,
         db: testDb,
         orgId: organizationId,
         role,
+        canManageBilling: false,
       },
     }) as {
       org: {

@@ -5,7 +5,8 @@
 import { BorderBeam } from '@/app/(marketing)/_components/ui/border-beam';
 import { CardHoverEffect } from '@/app/(marketing)/_components/ui/pulse-card';
 import { Spotlight } from '@/app/(marketing)/_components/ui/spotlight';
-import { motion, useInView } from 'framer-motion';
+import { motion } from 'motion/react';
+import { useInView } from 'react-intersection-observer';
 import {
   Globe,
   Heart,
@@ -83,8 +84,8 @@ export default function AboutUs1() {
   const missionRef = useRef(null);
   const valuesRef = useRef(null);
 
-  const missionInView = useInView(missionRef, { once: true, amount: 0.3 });
-  const valuesInView = useInView(valuesRef, { once: true, amount: 0.3 });
+  const { ref: missionRefSetter, inView: missionInView } = useInView({ triggerOnce: true, threshold: 0.3 });
+  const { ref: valuesRefSetter, inView: valuesInView } = useInView({ triggerOnce: true, threshold: 0.3 });
 
   return (
     <section className="relative w-full overflow-hidden pt-20">
@@ -111,7 +112,7 @@ export default function AboutUs1() {
         </motion.div>
 
         {/* Mission & Vision Section */}
-        <div ref={missionRef} className="relative mx-auto mb-24 max-w-7xl">
+        <div ref={missionRefSetter} className="relative mx-auto mb-24 max-w-7xl">
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             animate={
@@ -170,7 +171,7 @@ export default function AboutUs1() {
           </motion.div>
         </div>
 
-        <div ref={valuesRef} className="mb-24">
+        <div ref={valuesRefSetter} className="mb-24">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={

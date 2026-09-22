@@ -32,11 +32,13 @@ export function DataPagination({ total, currentPage, limit }: PaginationProps) {
       </div>
       <div className="flex gap-2">
         <Button variant="outline" size="icon" className="h-8 w-8"
-          onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage <= 1}>
+          onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage <= 1}
+          aria-label="Previous page">
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <Button variant="outline" size="icon" className="h-8 w-8"
-          onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage >= totalPages}>
+          onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage >= totalPages}
+          aria-label="Next page">
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>

@@ -2,7 +2,7 @@
 
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { TrendingDown, TrendingUp } from 'lucide-react';
 import { memo } from 'react';
 

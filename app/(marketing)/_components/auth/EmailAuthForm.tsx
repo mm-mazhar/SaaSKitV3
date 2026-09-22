@@ -6,7 +6,10 @@ import { validateEmail } from '@/app/actions/auth-check'
 import { createClient } from '@/app/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { ensurePostHogInitialized } from '@/app/providers'
+import { ANALYTICS_EVENTS } from '@/lib/analytics/events'
 import Link from 'next/link'
+import posthog from 'posthog-js'
 import { useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 
@@ -57,6 +60,14 @@ export function EmailAuthForm({ next }: { next?: string }) {
     if (error) {
       setErrorMsg(error.message)
     } else {
+      // The user is still anonymous here -- there is no session until they
+      // click the link -- so this event lands on their anonymous distinct id
+      // and is stitched to the account by identify() once the link is used.
+      if (ensurePostHogInitialized()) {
+        posthog.capture(ANALYTICS_EVENTS.MAGIC_LINK_SENT, {
+          is_invite: Boolean(inviteMatch),
+        })
+      }
       setInfoMsg('Check your inbox for the magic link')
     }
     setLoading(false)
