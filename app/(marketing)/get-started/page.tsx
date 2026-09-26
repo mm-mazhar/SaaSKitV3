@@ -4,7 +4,8 @@ import { EmailAuthForm } from '@/app/(marketing)/_components/auth/EmailAuthForm'
 import { GoogleAuthButton } from '@/app/(marketing)/_components/auth/GoogleAuthButton'
 import SiteLogo from '@/app/(marketing)/_components/Sitelogo'
 import { getCachedUser } from '@/app/lib/supabase/server'
-import { ShineBorder } from '@/components/ui/shine-border'
+import { CircuitGrid } from '@/components/cyber/circuit-grid'
+import { CyberLabel } from '@/components/cyber/cyber-label'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
@@ -24,14 +25,14 @@ export default async function LoginPage({
   }
 
   return (
-    <div className='flex min-h-screen items-center justify-center'>
-      <div className='w-full max-w-md space-y-8 p-8 border rounded-lg relative overflow-hidden'>
-        <ShineBorder borderWidth={1} duration={20} shineColor={['var(--primary)']} />
-      
+    <div className='relative isolate flex min-h-screen items-center justify-center px-4 py-28'>
+      <CircuitGrid pattern='circuit' mesh />
+      <div className='cyber-chamfer cyber-edge bg-card relative w-full max-w-md space-y-8 rounded-lg border p-8'>
         <div className='text-center space-y-6'>
           <div className='flex justify-center'>
             <SiteLogo />
           </div>
+          <CyberLabel>Access terminal</CyberLabel>
           <h1 className='text-3xl font-bold'>Welcome</h1>
           <p className='mt-2 text-muted-foreground'>Sign in to your account</p>
         </div>
@@ -44,7 +45,7 @@ export default async function LoginPage({
               <span className='w-full border-t' />
             </div>
             <div className='relative flex justify-center text-xs uppercase'>
-              <span className='bg-background px-2 text-muted-foreground'>
+              <span className='bg-card font-label px-2 tracking-[0.15em] text-muted-foreground'>
                 Or continue with email
               </span>
             </div>
@@ -67,7 +68,6 @@ export default async function LoginPage({
           </p>
         </div>
       </div>
-      
     </div>
   )
 }

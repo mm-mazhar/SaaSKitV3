@@ -84,7 +84,7 @@ export function CreateOrgDialog({
             </div>
             <p className='col-span-4 text-xs text-muted-foreground'>Up to 20 characters</p>
             
-            {error && <p className='text-red-500 text-sm'>{(error as Error).message}</p>}
+            {error && <p className='text-destructive text-sm'>{(error as Error).message}</p>}
           </div>
           <DialogFooter>
             <Button type='submit' disabled={isPending} className='focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0'>

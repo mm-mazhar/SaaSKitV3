@@ -8,7 +8,7 @@ import { ThemeProvider } from '@/components/theme-provider'
 import { ToastProvider } from '@/components/ToastProvider'
 import type { Metadata } from 'next'
 import { unstable_noStore as noStore } from 'next/cache'
-import { Bricolage_Grotesque, Inter } from 'next/font/google'
+import { Bricolage_Grotesque, Inter, JetBrains_Mono, Orbitron, Share_Tech_Mono } from 'next/font/google'
 import Script from 'next/script'
 
 import './globals.css'
@@ -17,11 +17,11 @@ import { ThemeInitializer } from '@/components/ThemeInitializer'
 import {
   APP_DESCRIPTION,
   APP_SLOGAN,
-  DEFAULT_COLOR_SCHEME,
   DEFAULT_THEME_MODE,
   KEYWORDS_LST,
   LOCALE,
   NEXT_PUBLIC_SITE_NAME,
+  resolveColorScheme,
   SITE_URL,
   SOCIAL_HANDLES,
 } from '@/lib/constants'
@@ -31,6 +31,28 @@ const bricolage = Bricolage_Grotesque({
   subsets: ['latin'],
   variable: '--font-display',
 })
+
+// .theme-cyber faces. Not preloaded: only the active scheme's CSS references them,
+// so users on other schemes never download these files.
+const orbitron = Orbitron({
+  subsets: ['latin'],
+  variable: '--font-cyber-display',
+  preload: false,
+})
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-cyber-mono',
+  preload: false,
+})
+const shareTechMono = Share_Tech_Mono({
+  subsets: ['latin'],
+  weight: '400',
+  variable: '--font-cyber-label',
+  preload: false,
+})
+const fontVariables = [bricolage, orbitron, jetbrainsMono, shareTechMono]
+  .map((font) => font.variable)
+  .join(' ')
 const FAVICON_VERSION = '20260405'
 
 // const geistSans = Geist({
@@ -172,7 +194,7 @@ export default async function RootLayout({
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </head>
-      <body className={`${inter.className} ${bricolage.variable} ${data?.colorScheme ?? DEFAULT_COLOR_SCHEME} scroll-smooth`}>
+      <body className={`${inter.className} ${fontVariables} ${resolveColorScheme(data?.colorScheme)} scroll-smooth`}>
         <Script id='theme-init' strategy='beforeInteractive'>
           {`(function(){try{var k='app-theme';var s=localStorage.getItem(k);var t=s?s:(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');var d=document.documentElement;d.classList.remove('light','dark');d.classList.add(t);}catch(e){}})();`}
         </Script>

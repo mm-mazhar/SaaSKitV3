@@ -30,9 +30,8 @@ type UserGrowthChartProps = {
 };
 
 // Blue-ish palette for Users
-const BAR_COLORS = [
-  'bg-blue-500', 'bg-indigo-500', 'bg-sky-500', 'bg-blue-600', 'bg-indigo-400', 'bg-sky-600',
-];
+// Single series, single colour: per-bar hues would imply categories that aren't there.
+const BAR_COLORS = ['bg-chart-3'];
 
 export const UserGrowthChart = memo(({ className, data }: UserGrowthChartProps) => {
   const [period, setPeriod] = useState<string>("6");
@@ -147,7 +146,7 @@ export const UserGrowthChart = memo(({ className, data }: UserGrowthChartProps) 
                           {index > 0 && (
                             <div
                               className={`text-center mt-1 ${
-                                point.momChange >= 0 ? 'text-emerald-500' : 'text-red-500'
+                                point.momChange >= 0 ? 'text-success' : 'text-destructive'
                               }`}
                             >
                               {point.momChange > 0 ? '+' : ''}
@@ -173,7 +172,7 @@ export const UserGrowthChart = memo(({ className, data }: UserGrowthChartProps) 
                 <svg
                   viewBox="0 0 100 100"
                   preserveAspectRatio="none"
-                  className="absolute inset-0 w-full h-full text-blue-500/80"
+                  className="absolute inset-0 w-full h-full text-chart-3"
                 >
                   {chartData.length > 1 && (
                     <polyline
@@ -191,7 +190,7 @@ export const UserGrowthChart = memo(({ className, data }: UserGrowthChartProps) 
                         className="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer"
                         style={{ left: `${point.x}%`, top: `${point.y}%` }}
                       >
-                        <div className="h-2 w-2 rounded-full bg-blue-500 border border-background" />
+                        <div className="h-2 w-2 rounded-full bg-chart-3 border border-background" />
                       </div>
                     </TooltipTrigger>
                     <TooltipContent className="bg-popover text-popover-foreground border-border shadow-xl p-2 rounded-lg text-xs font-medium">
@@ -220,7 +219,7 @@ export const UserGrowthChart = memo(({ className, data }: UserGrowthChartProps) 
         {/* Footer Stats */}
         <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border/50">
           <div className="text-center">
-            <div className="text-2xl font-bold text-blue-500">
+            <div className="text-2xl font-bold text-chart-3">
               {stats.total.toLocaleString()}
             </div>
             <div className="text-xs text-muted-foreground font-medium mt-1">
@@ -228,7 +227,7 @@ export const UserGrowthChart = memo(({ className, data }: UserGrowthChartProps) 
             </div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-emerald-500">
+            <div className={`text-2xl font-bold ${stats.growthRate < 0 ? 'text-destructive' : 'text-success'}`}>
               {stats.growthRate > 0 ? '+' : ''}{Math.round(stats.growthRate)}%
             </div>
             <div className="text-xs text-muted-foreground font-medium mt-1">
@@ -236,7 +235,7 @@ export const UserGrowthChart = memo(({ className, data }: UserGrowthChartProps) 
             </div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-purple-500">
+            <div className="text-2xl font-bold text-foreground">
               {stats.average.toFixed(1)}
             </div>
             <div className="text-xs text-muted-foreground font-medium mt-1">

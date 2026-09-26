@@ -11,7 +11,7 @@ export default function CancelledRoute() {
       <Card className='w-[350px]'>
         <div className='p-6'>
           <div className='w-full flex justify-center'>
-            <XIcon className='w-12 h-12 rounded-full bg-red-500/30 text-red-500 p-2' />
+            <XIcon className='w-12 h-12 rounded-full bg-destructive/20 text-destructive p-2' />
           </div>
 
           <div className='mt-3 text-center sm:mt-5 w-full'>

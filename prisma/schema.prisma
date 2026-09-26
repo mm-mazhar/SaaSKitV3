@@ -14,7 +14,7 @@ model User {
   name             String?
   email            String        @unique
   
-  colorScheme      String        @default("theme-green")
+  colorScheme      String        @default("theme-cyber")
   themePreference  String        @default("dark")
 
   createdAt        DateTime      @default(now())

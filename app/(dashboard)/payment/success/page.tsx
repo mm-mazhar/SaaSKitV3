@@ -38,7 +38,7 @@ export default function SuccessRoute() {
       <Card className='w-[350px]'>
         <div className='p-6'>
           <div className='w-full flex justify-center'>
-            <Check className='w-12 h-12 rounded-full bg-green-500/30 text-green-500 p-2' />
+            <Check className='w-12 h-12 rounded-full bg-success/20 text-success p-2' />
           </div>
 
           <div className='mt-3 text-center sm:mt-5 w-full'>

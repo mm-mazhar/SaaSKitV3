@@ -2,8 +2,8 @@
 
 'use client'
 import { Themetoggle } from '@/components/Themetoggle'
+import { CyberButton } from '@/components/cyber/cyber-button'
 import { MARKETING_SURFACE_MAX_WIDTH } from '@/components/page-section'
-import { Button } from '@/components/ui/button'
 import { ShineBorder } from '@/components/ui/shine-border'
 import { cn } from '@/lib/utils'
 import { type User } from '@supabase/supabase-js'
@@ -12,6 +12,9 @@ import Link from 'next/link'
 import React from 'react'
 import LogoutButton from './HeaderLogoutButton'
 import SiteLogo from './Sitelogo'
+
+const NAV_LINK_CLASS =
+  'font-label text-muted-foreground hover:text-neon block tracking-[0.15em] uppercase duration-150'
 
 const menuItems = [
   { name: 'Features', href: '/#features' },
@@ -43,8 +46,8 @@ export const HeroHeader = ({ initialUser }: HeroHeaderProps) => {
       >
         <div
           className={cn(
-            `mx-auto mt-1 px-5 rounded-2xl border border-transparent relative overflow-hidden ${MARKETING_SURFACE_MAX_WIDTH}`,
-            isScrolled && 'bg-background/50 backdrop-blur-lg border'
+            `mx-auto mt-1 px-5 rounded-xl border border-transparent relative overflow-hidden ${MARKETING_SURFACE_MAX_WIDTH}`,
+            isScrolled && 'cyber-chamfer cyber-edge bg-background/70 backdrop-blur-lg border'
           )}
         >
           {isScrolled ? (
@@ -65,13 +68,10 @@ export const HeroHeader = ({ initialUser }: HeroHeaderProps) => {
             </div>
 
             <div className='hidden flex-1 justify-center lg:flex'>
-              <ul className='flex gap-8 text-sm'>
+              <ul className='flex gap-8 text-xs'>
                 {menuItems.map((item, index) => (
                   <li key={index}>
-                    <Link
-                      href={item.href}
-                      className='text-muted-foreground hover:text-primary block duration-150'
-                    >
+                    <Link href={item.href} className={NAV_LINK_CLASS}>
                       <span>{item.name}</span>
                     </Link>
                   </li>
@@ -79,15 +79,12 @@ export const HeroHeader = ({ initialUser }: HeroHeaderProps) => {
               </ul>
             </div>
 
-            <div className='bg-background in-data-[state=active]:block lg:in-data-[state=active]:flex mb-6 hidden w-full flex-wrap items-center justify-end space-y-8 rounded-3xl border p-6 shadow-2xl shadow-zinc-300/20 md:flex-nowrap lg:m-0 lg:flex lg:w-fit lg:gap-6 lg:space-y-0 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none dark:shadow-none dark:lg:bg-transparent'>
+            <div className='bg-background in-data-[state=active]:block lg:in-data-[state=active]:flex mb-6 hidden w-full flex-wrap items-center justify-end space-y-8 rounded-xl border p-6 shadow-2xl shadow-zinc-300/20 md:flex-nowrap lg:m-0 lg:flex lg:w-fit lg:gap-6 lg:space-y-0 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none dark:shadow-none dark:lg:bg-transparent'>
               <div className='lg:hidden'>
-                <ul className='space-y-6 text-base'>
+                <ul className='space-y-6 text-sm'>
                   {menuItems.map((item, index) => (
                     <li key={index}>
-                      <Link
-                        href={item.href}
-                        className='text-muted-foreground hover:text-primary block duration-150'
-                      >
+                      <Link href={item.href} className={NAV_LINK_CLASS}>
                         <span>{item.name}</span>
                       </Link>
                     </li>
@@ -97,64 +94,19 @@ export const HeroHeader = ({ initialUser }: HeroHeaderProps) => {
               <div className='flex w-full flex-col space-y-3 sm:flex-row sm:gap-3 sm:space-y-0 md:w-fit'>
                   {initialUser ? (
                     <>
-                      <Button
-                        asChild
-                        variant='default'
-                        size='sm'
-                        // className={cn(isScrolled && 'lg:hidden')}
-                        // className={cn('font-bold')}
-                      >
-                        <Link href='/dashboard'>
-                          <span>Dashboard</span>
-                        </Link>
-                      </Button>
+                      <CyberButton asChild size='sm'>
+                        <Link href='/dashboard'>Dashboard</Link>
+                      </CyberButton>
                       <LogoutButton />
                       
                       <Themetoggle isAuthenticated={true} />
                     </>
                   ) : (
                     <>
-                     
-                      {/* <Button
-                  asChild
-                  variant='outline'
-                  size='sm'
-                  className={cn(isScrolled && 'lg:hidden')}
-                >
-                  <Link href='#'>
-                    <span>Login</span>
-                  </Link>
-                </Button> */}
-                      <Button
-                        asChild
-                        variant='default'
-                        size='sm'
-                        className={cn(isScrolled && 'lg:hidden', 'font-bold')}
-                      >
-                        <Link href='/get-started'>
-                          <span>Get Started</span>
-                        </Link>
-                      </Button>
-                      {/* <Button
-                  asChild
-                  size='sm'
-                  className={cn(isScrolled && 'lg:hidden')}
-                >
-                  <Link href='#'>
-                    <span>Sign Up</span>
-                  </Link>
-                </Button> */}
 
-                      <Button
-                        asChild
-                        size='sm'
-                        variant='default'
-                        className={cn(isScrolled ? 'lg:inline-flex' : 'hidden', 'font-bold')}
-                      >
-                        <Link href='/get-started'>
-                          <span>Get Started</span>
-                        </Link>
-                      </Button>
+                      <CyberButton asChild size='sm'>
+                        <Link href='/get-started'>Get Started</Link>
+                      </CyberButton>
                       <Themetoggle isAuthenticated={false} />
                     </>
                   )}

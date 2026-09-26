@@ -11,7 +11,7 @@ import { orpc } from '@/lib/orpc/client'
 import { useORPCMutation } from '@/hooks/use-orpc-mutation'
 import { useRouter } from 'next/navigation'
 import * as React from 'react'
-import { DEFAULT_COLOR_SCHEME } from '@/lib/constants'
+import { COLOR_SCHEMES, COLOR_SCHEME_LABELS, isColorScheme, resolveColorScheme, type ColorScheme } from '@/lib/constants'
 
 interface UserSettingsFormProps {
   defaultName: string | null
@@ -21,7 +21,7 @@ interface UserSettingsFormProps {
 
 export function UserSettingsForm({ defaultName, defaultEmail, defaultColorScheme }: UserSettingsFormProps) {
   const [name, setName] = React.useState(defaultName ?? '')
-  const [colorScheme, setColorScheme] = React.useState(defaultColorScheme ?? DEFAULT_COLOR_SCHEME)
+  const [colorScheme, setColorScheme] = React.useState<ColorScheme>(resolveColorScheme(defaultColorScheme))
   const { show } = useToast()
   const router = useRouter()
 
@@ -66,15 +66,23 @@ export function UserSettingsForm({ defaultName, defaultEmail, defaultColorScheme
 
         <div className='space-y-1'>
           <Label>Color Scheme</Label>
-          <Select value={colorScheme} onValueChange={setColorScheme}>
+          <Select
+            value={colorScheme}
+            onValueChange={(value) => {
+              if (isColorScheme(value)) setColorScheme(value)
+            }}
+          >
             <SelectTrigger className='w-full'>
               <SelectValue placeholder='Select a color' />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
                 <SelectLabel>Color</SelectLabel>
-                <SelectItem value='theme-neutral'>Neutral</SelectItem>
-                <SelectItem value='theme-green'>Green</SelectItem>
+                {COLOR_SCHEMES.map((scheme) => (
+                  <SelectItem key={scheme} value={scheme}>
+                    {COLOR_SCHEME_LABELS[scheme]}
+                  </SelectItem>
+                ))}
               </SelectGroup>
             </SelectContent>
           </Select>

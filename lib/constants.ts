@@ -10,8 +10,28 @@ export const PRODUCTION_URL = process.env.PRODUCTION_URL || ''
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || ''
 
 // ✅ COLOR SCHEME AND MODE
-export const DEFAULT_COLOR_SCHEME = `theme-green` as string
+// Each value maps 1:1 to a `.theme-*` token block in app/globals.css.
+export const COLOR_SCHEMES = ['theme-cyber', 'theme-green', 'theme-neutral'] as const
+export type ColorScheme = (typeof COLOR_SCHEMES)[number]
+
+export const COLOR_SCHEME_LABELS: Record<ColorScheme, string> = {
+  'theme-cyber': 'Cyberpunk',
+  'theme-green': 'Green',
+  'theme-neutral': 'Neutral',
+}
+
+export const DEFAULT_COLOR_SCHEME: ColorScheme = 'theme-cyber'
 export const DEFAULT_THEME_MODE = `dark` as string
+
+export function isColorScheme(value: unknown): value is ColorScheme {
+  return typeof value === 'string' && (COLOR_SCHEMES as readonly string[]).includes(value)
+}
+
+// Stored values can predate the current scheme list (e.g. legacy `theme-orange` rows),
+// so anything unknown falls back to the default instead of rendering an unthemed body.
+export function resolveColorScheme(value: string | null | undefined): ColorScheme {
+  return isColorScheme(value) ? value : DEFAULT_COLOR_SCHEME
+}
 
 // ✅ LOCALE
 export const LOCALE = `en_US`

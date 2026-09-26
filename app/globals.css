@@ -1,7 +1,9 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./styles/theme-cyber.css";
 
-@custom-variant dark (&:is(.dark *));
+/* .theme-cyber is dark-only, so `dark:` utilities must apply inside it regardless of the html mode class. */
+@custom-variant dark (&:is(.dark *, .theme-cyber *));
 
 /* @tailwind base;
 @tailwind components; */
@@ -35,6 +37,10 @@
   --color-accent-foreground: var(--accent-foreground);
 
   --color-destructive: var(--destructive);
+  /* Status roles: use these instead of raw palette colours (emerald/amber/blue) so every scheme can restyle them. */
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
 
   --color-border: var(--border);
   --color-input: var(--input);
@@ -54,6 +60,27 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Typography roles. Schemes swap the underlying faces; see body.theme-cyber. */
+  --font-heading: var(--font-display), ui-sans-serif, sans-serif;
+  --font-label: var(--label-face, var(--font-mono));
+
+  /* Neon accents. Schemes without neon tokens fall back to primary / no glow. */
+  --color-neon: var(--neon, var(--primary));
+  --color-neon-secondary: var(--neon-secondary, var(--primary));
+  --color-neon-tertiary: var(--neon-tertiary, var(--primary));
+
+  --shadow-neon-sm: var(--glow-neon-sm, 0 0 #0000);
+  --shadow-neon: var(--glow-neon, 0 0 #0000);
+  --shadow-neon-lg: var(--glow-neon-lg, 0 0 #0000);
+  --shadow-neon-secondary: var(--glow-neon-secondary, 0 0 #0000);
+  --shadow-neon-tertiary: var(--glow-neon-tertiary, 0 0 #0000);
+
+  /* Cyber motion (keyframes below @theme: theme-cyber.css references them directly) */
+  --animate-blink: blink 1s step-end infinite;
+  --animate-glitch: glitch 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+  --animate-rgb-shift: rgb-shift 2.5s ease-in-out infinite;
+  --animate-scanline: scanline 8s linear infinite;
 
   /* Animations */
   --animate-aurora: aurora 8s ease-in-out infinite alternate;
@@ -107,6 +134,54 @@
   }
 }
 
+/*
+ * Hoisted out of @theme, which only emits keyframes for used `animate-*` utilities.
+ * These are also referenced by name from app/styles/theme-cyber.css.
+ */
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes glitch {
+  0%,
+  100% {
+    transform: translate(0);
+  }
+  20% {
+    transform: translate(-2px, 2px);
+  }
+  40% {
+    transform: translate(2px, -2px);
+  }
+  60% {
+    transform: translate(-1px, -1px);
+  }
+  80% {
+    transform: translate(1px, 1px);
+  }
+}
+
+@keyframes rgb-shift {
+  0%,
+  100% {
+    text-shadow: -2px 0 var(--neon-secondary), 2px 0 var(--neon-tertiary);
+  }
+  50% {
+    text-shadow: 2px 0 var(--neon-secondary), -2px 0 var(--neon-tertiary);
+  }
+}
+
+@keyframes scanline {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100vh);
+  }
+}
+
 /* --- Theme Definitions (OKLCH) --- */
 
 .theme-green {
@@ -127,6 +202,9 @@
   --accent: oklch(0.967 0.001 286.375);
   --accent-foreground: oklch(0.21 0.006 285.885);
   --destructive: oklch(0.577 0.245 27.325);
+  --success: oklch(0.508 0.118 165.612);
+  --warning: oklch(0.555 0.163 48.998);
+  --info: oklch(0.546 0.245 262.881);
   --border: oklch(0.92 0.004 286.32);
   --input: oklch(0.92 0.004 286.32);
   --ring: oklch(0.723 0.219 149.579);
@@ -162,6 +240,9 @@
   --accent: oklch(0.274 0.006 286.033);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
+  --success: oklch(0.696 0.17 162.48);
+  --warning: oklch(0.769 0.188 70.08);
+  --info: oklch(0.623 0.214 259.815);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.527 0.154 150.069);
@@ -197,6 +278,9 @@
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
+  --success: oklch(0.508 0.118 165.612);
+  --warning: oklch(0.555 0.163 48.998);
+  --info: oklch(0.546 0.245 262.881);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
@@ -231,6 +315,9 @@
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
+  --success: oklch(0.696 0.17 162.48);
+  --warning: oklch(0.769 0.188 70.08);
+  --info: oklch(0.623 0.214 259.815);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
@@ -325,7 +412,11 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-marquee {
+  .animate-marquee,
+  .animate-blink,
+  .animate-glitch,
+  .animate-rgb-shift,
+  .animate-scanline {
     animation: none;
   }
 }

@@ -1,6 +1,7 @@
 // lib/orpc/routers/user.ts
 
 import * as z from 'zod'
+import { COLOR_SCHEMES } from '@/lib/constants'
 import { protectedProcedure } from '../procedures'
 
 /**
@@ -13,6 +14,12 @@ export type ThemeValue = typeof THEME_VALUES[number]
  * Theme validation schema
  */
 const themeSchema = z.enum(THEME_VALUES)
+
+/**
+ * Color scheme validation schema. The value is rendered as a class on <body>,
+ * so only known schemes may be persisted.
+ */
+export const colorSchemeSchema = z.enum(COLOR_SCHEMES)
 
 export const userRouter = {
   /**
@@ -73,7 +80,7 @@ export const userRouter = {
    * Update user's color scheme
    */
   updateColorScheme: protectedProcedure
-    .input(z.object({ colorScheme: z.string() }))
+    .input(z.object({ colorScheme: colorSchemeSchema }))
     .route({
       method: 'PATCH',
       path: '/user/color-scheme',
@@ -102,7 +109,7 @@ export const userRouter = {
   updateProfile: protectedProcedure
     .input(z.object({ 
       name: z.string().optional(),
-      colorScheme: z.string().optional(),
+      colorScheme: colorSchemeSchema.optional(),
     }))
     .route({
       method: 'PATCH',

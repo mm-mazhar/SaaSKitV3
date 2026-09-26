@@ -121,7 +121,7 @@ export function CreateWorkspaceDialog({
             </div>
             <p className='col-span-4 text-xs text-muted-foreground'>Up to 20 characters</p>
             
-            {error && <p className='text-red-500 text-sm'>{error}</p>}
+            {error && <p className='text-destructive text-sm'>{error}</p>}
           </div>
           <DialogFooter>
             <Button type='submit' disabled={createWorkspaceMutation.isPending}>

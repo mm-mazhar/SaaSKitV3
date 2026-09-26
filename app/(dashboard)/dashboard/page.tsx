@@ -3,9 +3,10 @@
 import { CreateWorkspaceDialog } from '@/app/(dashboard)/_components/create-workspace-dialog'
 import { WorkspaceActions } from '@/app/(dashboard)/_components/workspace-actions'
 import { getCachedUser } from '@/app/lib/supabase/server'
+import { TerminalEmptyState } from '@/components/cyber/terminal-empty-state'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { getRPCCaller } from '@/lib/orpc/rsc-client'
-import { Folder } from 'lucide-react'
+import { Building2, Folder } from 'lucide-react'
 import { unstable_noStore as noStore } from 'next/cache'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
@@ -36,8 +37,14 @@ export default async function DashboardPage() {
 
   if (!effectiveOrgId) {
     return (
-      <div className='flex h-[50vh] flex-col items-center justify-center gap-4'>
-        <p className='text-muted-foreground'>No organization found.</p>
+      <div className='p-4 pt-0'>
+        <TerminalEmptyState
+          icon={Building2}
+          path='~/organizations'
+          readout='0 organizations found'
+          title='No organization found'
+          description='You are not a member of any organization yet.'
+        />
       </div>
     )
   }
@@ -57,16 +64,15 @@ export default async function DashboardPage() {
       </div>
 
       {workspaces.length === 0 ? (
-        <div className='flex min-h-[400px] flex-col items-center justify-center rounded-md border border-dashed p-8 text-center animate-in fade-in-50'>
-          <div className='mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent'>
-            <Folder className='h-6 w-6 text-foreground' />
-          </div>
-          <h3 className='mt-4 text-lg font-semibold'>No workspaces yet</h3>
-          <p className='mb-4 mt-2 text-sm text-muted-foreground max-w-sm'>
-            Create your first workspace to start building.
-          </p>
-          <CreateWorkspaceDialog orgId={effectiveOrgId} />
-        </div>
+        <TerminalEmptyState
+          icon={Folder}
+          path='~/workspaces'
+          readout='0 workspaces found'
+          title='No workspaces yet'
+          description='Create your first workspace to start building.'
+          action={<CreateWorkspaceDialog orgId={effectiveOrgId} />}
+          className='animate-in fade-in-50'
+        />
       ) : (
         <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
           {workspaces.map((workspace: { id: string; name: string; slug: string; updatedAt: Date }) => (
@@ -78,7 +84,7 @@ export default async function DashboardPage() {
                 <WorkspaceActions workspaceId={workspace.id} defaultName={workspace.name} userRole={userRole} />
               </CardHeader>
               <CardContent>
-                <div className='text-xs text-muted-foreground'>
+                <div className='font-mono text-xs text-muted-foreground'>
                   slug: {workspace.slug}
                 </div>
                 <p className='text-xs text-muted-foreground'>

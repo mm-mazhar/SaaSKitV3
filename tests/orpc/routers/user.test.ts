@@ -3,6 +3,8 @@
 
 import { describe, it, expect } from 'vitest'
 import fc from 'fast-check'
+import { colorSchemeSchema } from '@/lib/orpc/routers/user'
+import { COLOR_SCHEMES, DEFAULT_COLOR_SCHEME, resolveColorScheme } from '@/lib/constants'
 
 /**
  * Valid theme values - mirrors the values in user router
@@ -132,6 +134,39 @@ describe('User Router Properties', () => {
         ),
         { numRuns: 100 }
       )
+    })
+  })
+
+  /**
+   * colorScheme is rendered verbatim as a <body> class, so the router must
+   * reject anything outside the known scheme list.
+   */
+  describe('Color scheme validation', () => {
+    it('accepts every known scheme', () => {
+      for (const scheme of COLOR_SCHEMES) {
+        expect(colorSchemeSchema.safeParse(scheme).success).toBe(true)
+      }
+    })
+
+    it('rejects arbitrary strings', async () => {
+      await fc.assert(
+        fc.property(
+          fc.string().filter((s) => !(COLOR_SCHEMES as readonly string[]).includes(s)),
+          (value) => {
+            expect(colorSchemeSchema.safeParse(value).success).toBe(false)
+          }
+        ),
+        { numRuns: 100 }
+      )
+      expect(colorSchemeSchema.safeParse('theme-orange').success).toBe(false)
+      expect(colorSchemeSchema.safeParse('theme-cyber dark').success).toBe(false)
+    })
+
+    it('resolves stored values to a known scheme', () => {
+      expect(resolveColorScheme('theme-neutral')).toBe('theme-neutral')
+      expect(resolveColorScheme('theme-orange')).toBe(DEFAULT_COLOR_SCHEME)
+      expect(resolveColorScheme(null)).toBe(DEFAULT_COLOR_SCHEME)
+      expect(resolveColorScheme(undefined)).toBe(DEFAULT_COLOR_SCHEME)
     })
   })
 })

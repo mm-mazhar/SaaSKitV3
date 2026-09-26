@@ -159,11 +159,17 @@ export default function PricingComponent({
       {visiblePlans.map((plan) => (
         <Card
           key={plan.id}
-          className={`flex flex-col relative overflow-hidden ${
-          mode === 'marketing'
-          ? 'w-full max-w-sm mx-2 h-full min-h-[400px] md:min-h-[410px] lg:min-h-[420px]'
-          : 'w-full h-fit min-h-[360px] md:min-h-[370px]'
-        }`}
+          className={cn(
+            'flex flex-col relative overflow-hidden',
+            mode === 'marketing'
+              ? 'w-full max-w-sm mx-2 h-full min-h-[400px] md:min-h-[410px] lg:min-h-[420px]'
+              : 'w-full h-fit min-h-[360px] md:min-h-[370px]',
+            // Featured tier: lifted and outlined on the marketing table only (scale is md+ so
+            // stacked mobile cards stay aligned).
+            mode === 'marketing' &&
+              plan.id === PLAN_IDS.PLAN_B &&
+              'z-10 border-primary md:scale-105 [--edge:var(--primary)]'
+          )}
         >
           {mode === 'marketing' ? (
             <ShineBorder borderWidth={1} duration={20} shineColor={['var(--primary)']} />
@@ -195,7 +201,7 @@ export default function PricingComponent({
             className={`${mode === 'marketing' ? 'flex-grow' : ''} ${mode === 'billing' ? 'space-y-1' : 'space-y-4'} ${contentPaddingXClass}`}
           >
             <div
-              className={`relative flex items-baseline ${priceTextSizeClass} font-extrabold`}
+              className={`relative flex items-baseline ${priceTextSizeClass} font-heading font-extrabold`}
             >
               {formatPrice(plan.price)}
               <span className='ml-1 text-xl text-muted-foreground text-[13px]'>

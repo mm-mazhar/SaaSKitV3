@@ -135,7 +135,7 @@ export default async function BillingPage() {
           </Link>
         </div>
 
-        <Card className='rounded-lg border border-primary/40 bg-primary/5'>
+        <Card className='rounded-lg border border-primary/40 bg-primary/5 [--edge:color-mix(in_srgb,var(--primary)_40%,transparent)]'>
           <CardHeader className='p-2'>
             <CardTitle className='text-sm'>Available Credits</CardTitle>
             <CardDescription className='text-xs'>
@@ -256,11 +256,11 @@ export default async function BillingPage() {
 
              {/* Renew Subscription (Primary Action if Low Credits) */}
             {showRenewal ? (
-              <Card className='rounded-lg border border-yellow-500/50 bg-yellow-500/10 flex flex-col'>
+              <Card className='rounded-lg border border-warning/50 bg-warning/10 flex flex-col [--edge:color-mix(in_srgb,var(--warning)_50%,transparent)]'>
                  <CardHeader className='p-2'>
                   <div className='flex items-center justify-between'>
                     <div>
-                      <CardTitle className='text-sm text-yellow-600 dark:text-yellow-400'>Run out of credits?</CardTitle>
+                      <CardTitle className='text-sm text-warning'>Run out of credits?</CardTitle>
                       <CardDescription className='text-xs'>
                         Renew early to get fresh credits.
                         <br />

@@ -276,13 +276,13 @@ export default async function AdminDashboardPage() {
   const mrrPlanSummary = `${teamPlanTitle} + ${agencyPlanTitle} + ${partnerPlanTitle}`
 
   const cardStats = [
-    { title: 'Total MRR', value: formatCurrency(stats.totalRevenue), change: mrrPlanSummary, changeType: 'positive' as const, icon: DollarSign, color: 'text-green-500', bgColor: 'bg-green-500/10' },
-    { title: `${teamPlanTitle} (MRR)`, value: formatCurrency(stats.proRevenue), change: `${stats.activeProCount} subs`, changeType: 'positive' as const, icon: Layers, color: 'text-indigo-500', bgColor: 'bg-indigo-500/10' },
-    { title: `${agencyPlanTitle} (MRR)`, value: formatCurrency(stats.dealerCoreRevenue), change: `${stats.activeDealerCoreCount} subs`, changeType: 'positive' as const, icon: CreditCard, color: 'text-purple-500', bgColor: 'bg-purple-500/10' },
-    { title: `${partnerPlanTitle} (MRR)`, value: formatCurrency(stats.dealerPlusRevenue), change: `${stats.activeDealerPlusCount} subs`, changeType: 'positive' as const, icon: CreditCard, color: 'text-fuchsia-500', bgColor: 'bg-fuchsia-500/10' },
-    { title: 'Total Users', value: stats.totalUsers.toLocaleString(), change: `+${stats.growthPercentage}% (30d)`, changeType: 'positive' as const, icon: Users, color: 'text-blue-500', bgColor: 'bg-blue-500/10' },
-    { title: 'Active Organizations', value: stats.totalOrgs.toLocaleString(), change: 'Workspaces', changeType: 'positive' as const, icon: Activity, color: 'text-orange-500', bgColor: 'bg-orange-500/10' },
-    { title: 'Active Subscriptions', value: (stats.activeProCount + stats.activeDealerCoreCount + stats.activeDealerPlusCount).toLocaleString(), change: mrrPlanSummary, changeType: 'positive' as const, icon: Banknote, color: 'text-emerald-500', bgColor: 'bg-emerald-500/10' },
+    { title: 'Total MRR', value: formatCurrency(stats.totalRevenue), change: mrrPlanSummary, changeType: 'positive' as const, icon: DollarSign, color: 'text-success', bgColor: 'bg-success/10' },
+    { title: `${teamPlanTitle} (MRR)`, value: formatCurrency(stats.proRevenue), change: `${stats.activeProCount} subs`, changeType: 'positive' as const, icon: Layers, color: 'text-chart-1', bgColor: 'bg-chart-1/10' },
+    { title: `${agencyPlanTitle} (MRR)`, value: formatCurrency(stats.dealerCoreRevenue), change: `${stats.activeDealerCoreCount} subs`, changeType: 'positive' as const, icon: CreditCard, color: 'text-chart-2', bgColor: 'bg-chart-2/10' },
+    { title: `${partnerPlanTitle} (MRR)`, value: formatCurrency(stats.dealerPlusRevenue), change: `${stats.activeDealerPlusCount} subs`, changeType: 'positive' as const, icon: CreditCard, color: 'text-chart-3', bgColor: 'bg-chart-3/10' },
+    { title: 'Total Users', value: stats.totalUsers.toLocaleString(), change: `+${stats.growthPercentage}% (30d)`, changeType: 'positive' as const, icon: Users, color: 'text-info', bgColor: 'bg-info/10' },
+    { title: 'Active Organizations', value: stats.totalOrgs.toLocaleString(), change: 'Workspaces', changeType: 'positive' as const, icon: Activity, color: 'text-chart-4', bgColor: 'bg-chart-4/10' },
+    { title: 'Active Subscriptions', value: (stats.activeProCount + stats.activeDealerCoreCount + stats.activeDealerPlusCount).toLocaleString(), change: mrrPlanSummary, changeType: 'positive' as const, icon: Banknote, color: 'text-chart-5', bgColor: 'bg-chart-5/10' },
   ];
 
   return (

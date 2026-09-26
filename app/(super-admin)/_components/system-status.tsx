@@ -17,15 +17,15 @@ type SystemStatusProps = {
 };
 
 function getStatusClasses(status: string) {
-  if (status === 'online') return 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30';
-  if (status === 'degraded') return 'bg-amber-500/15 text-amber-600 border-amber-500/30';
-  return 'bg-red-500/15 text-red-600 border-red-500/30';
+  if (status === 'online') return 'bg-success/15 text-success border-success/30';
+  if (status === 'degraded') return 'bg-warning/15 text-warning border-warning/30';
+  return 'bg-destructive/15 text-destructive border-destructive/30';
 }
 
 function getDotClasses(status: string) {
-  if (status === 'online') return 'bg-emerald-500';
-  if (status === 'degraded') return 'bg-amber-500';
-  return 'bg-red-500';
+  if (status === 'online') return 'bg-success';
+  if (status === 'degraded') return 'bg-warning';
+  return 'bg-destructive';
 }
 
 export const SystemStatus = memo(({ className, health }: SystemStatusProps) => {

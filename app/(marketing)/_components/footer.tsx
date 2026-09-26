@@ -1,27 +1,49 @@
 // app/(marketing)/_components/footer.tsx
 
 import SiteLogo from '@/app/(marketing)/_components/Sitelogo'
+import { CircuitGrid } from '@/components/cyber/circuit-grid'
+import { CyberButton } from '@/components/cyber/cyber-button'
+import { CyberLabel } from '@/components/cyber/cyber-label'
 import { MARKETING_SURFACE_MAX_WIDTH } from '@/components/page-section'
-import { Button } from '@/components/ui/button'
-import { ShineBorder } from '@/components/ui/shine-border'
 import { APP_DESCRIPTION_LONG, NEXT_PUBLIC_SITE_NAME, SOCIAL_LINKS } from '@/lib/constants'
+import { cn } from '@/lib/utils'
 import Link from 'next/link'
+import { type IconType } from 'react-icons'
 import { FaLinkedinIn } from 'react-icons/fa6'
-import {
-    SiFacebook,
-    SiInstagram,
-    SiTiktok,
-    SiX,
-    SiYoutube,
-} from 'react-icons/si'
+import { SiFacebook, SiInstagram, SiTiktok, SiX, SiYoutube } from 'react-icons/si'
 
-const links = [
-  { title: 'Privacy', href: '/privacy-policy' },
-  { title: 'Terms', href: '/terms' },
-  { title: 'Contact', href: '/contact' },
-  { title: 'FAQs', href: '/faqs' },
-  { title: 'About', href: '/about' }
+const LINK_GROUPS = [
+  {
+    title: 'Product',
+    links: [
+      { title: 'Features', href: '/#features' },
+      { title: 'How it works', href: '/#how-it-works' },
+      { title: 'Pricing', href: '/#pricing' },
+      { title: 'FAQs', href: '/faqs' },
+    ],
+  },
+  {
+    title: 'Company',
+    links: [
+      { title: 'About', href: '/about' },
+      { title: 'Contact', href: '/contact' },
+      { title: 'Privacy', href: '/privacy-policy' },
+      { title: 'Terms', href: '/terms' },
+    ],
+  },
 ]
+
+const SOCIALS: { label: string; href: string; icon: IconType }[] = [
+  { label: 'X', href: SOCIAL_LINKS.twitter, icon: SiX },
+  { label: 'LinkedIn', href: SOCIAL_LINKS.linkedin, icon: FaLinkedinIn },
+  { label: 'Facebook', href: SOCIAL_LINKS.facebook, icon: SiFacebook },
+  { label: 'YouTube', href: SOCIAL_LINKS.youtube, icon: SiYoutube },
+  { label: 'Instagram', href: SOCIAL_LINKS.instagram, icon: SiInstagram },
+  { label: 'TikTok', href: SOCIAL_LINKS.tiktok, icon: SiTiktok },
+]
+
+const COLUMN_TITLE_CLASS = 'font-label text-muted-foreground mb-4 text-xs tracking-[0.2em] uppercase'
+const LINK_CLASS = 'text-muted-foreground hover:text-neon text-sm transition-colors duration-150'
 
 type FooterSectionProps = {
   isAuthenticated?: boolean
@@ -29,74 +51,76 @@ type FooterSectionProps = {
 
 export default function FooterSection({ isAuthenticated = false }: FooterSectionProps) {
   return (
-    <footer className='w-full pt-2 pb-8 md:pt-4 md:pb-8'>
-      <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-        <div className='flex flex-col items-center text-center'>
-          <div
-            className={`relative mb-10 w-full overflow-hidden rounded-[2rem] border border-border/70 bg-background/80 px-6 py-8 shadow-lg shadow-black/5 backdrop-blur md:px-10 md:py-10 ${MARKETING_SURFACE_MAX_WIDTH}`}
-          >
-            <ShineBorder borderWidth={1} duration={20} shineColor={['var(--primary)']} />
-            <div
-              aria-hidden
-              className='absolute inset-x-0 top-0 h-32'
-              style={{
-                background:
-                  'radial-gradient(circle at top, color-mix(in oklch, var(--primary) 16%, transparent), transparent 70%)',
-              }}
-            />
-            <div className='relative flex flex-col items-center gap-5'>
-              <div className='rounded-full border border-border/60 bg-background/75 px-3 py-1 text-[11px] font-medium tracking-[0.22em] text-muted-foreground'>
-                BUILT FOR TEAMS THAT SHIP
-              </div>
-              <div className='max-w-2xl space-y-3'>
-                <h2 className='text-2xl font-semibold tracking-tight md:text-3xl'>
-                  Stop rebuilding the same SaaS plumbing
-                </h2>
-                <p className='text-sm leading-6 text-muted-foreground md:text-base'>
-                  Organizations, workspaces, roles, and billing are already wired together. Start your account and see it for yourself.
-                </p>
-              </div>
-              <div className='flex flex-col gap-3 sm:flex-row'>
-                <Button asChild size='lg' className='font-semibold'>
-                  <Link href={isAuthenticated ? '/dashboard' : '/get-started'}>
-                    {isAuthenticated ? 'Dashboard' : 'Get Started'}
-                  </Link>
-                </Button>
-                <Button asChild size='lg' variant='outline' className='font-semibold'>
-                  <Link href='/faqs'>Review FAQs</Link>
-                </Button>
-              </div>
+    <footer className='w-full pt-8 pb-8'>
+      <div className={cn('mx-auto px-4 sm:px-6 lg:px-8', MARKETING_SURFACE_MAX_WIDTH)}>
+        <div className='cyber-chamfer cyber-edge bg-card relative isolate mb-16 overflow-hidden rounded-xl border px-6 py-12 md:px-12 md:py-16'>
+          <CircuitGrid pattern='circuit' mesh />
+          <div className='flex flex-col items-center gap-6 text-center'>
+            <CyberLabel>Built for teams that ship</CyberLabel>
+            <h2 className='max-w-3xl text-2xl font-bold text-balance md:text-4xl'>Stop rebuilding the same SaaS plumbing</h2>
+            <p className='text-muted-foreground max-w-2xl text-sm leading-6 md:text-base'>
+              Organizations, workspaces, roles, and billing are already wired together. Start your account and see it for
+              yourself.
+            </p>
+            <div className='flex flex-col gap-4 sm:flex-row'>
+              <CyberButton asChild variant='glitch' size='lg'>
+                <Link href={isAuthenticated ? '/dashboard' : '/get-started'}>
+                  {isAuthenticated ? 'Dashboard' : 'Get Started'}
+                </Link>
+              </CyberButton>
+              <CyberButton asChild variant='outline' size='lg'>
+                <Link href='/faqs'>Review FAQs</Link>
+              </CyberButton>
             </div>
           </div>
+        </div>
 
-          <SiteLogo />
-          <p className='mt-4 max-w-2xl text-sm leading-6 text-muted-foreground'>
-            {APP_DESCRIPTION_LONG}
-          </p>
-
-          <div className='mt-6 mb-8 flex flex-wrap justify-center gap-6 text-sm'>
-            {links.map((link, index) => (
-              <Link
-                key={index}
-                href={link.href}
-                className='text-muted-foreground hover:text-primary block duration-150'
-              >
-                <span>{link.title}</span>
-              </Link>
-            ))}
+        <div className='grid gap-10 border-t pt-12 md:grid-cols-2 lg:grid-cols-4'>
+          <div className='flex flex-col items-start gap-4'>
+            <SiteLogo />
+            <p className='text-muted-foreground text-sm leading-6'>{APP_DESCRIPTION_LONG}</p>
           </div>
 
-          <div className='mb-8 flex flex-wrap justify-center gap-6 text-sm'>
-            <Link href={SOCIAL_LINKS.twitter} className='block hover:text-primary transition-colors'><SiX size={24} /></Link>
-            <Link href={SOCIAL_LINKS.linkedin} className='block hover:text-primary transition-colors'><FaLinkedinIn size={24} /></Link>
-            <Link href={SOCIAL_LINKS.facebook} className='block hover:text-primary transition-colors'><SiFacebook size={24} /></Link>
-            <Link href={SOCIAL_LINKS.youtube} className='block hover:text-primary transition-colors'><SiYoutube size={24} /></Link>
-            <Link href={SOCIAL_LINKS.instagram} className='block hover:text-primary transition-colors'><SiInstagram size={24} /></Link>
-            <Link href={SOCIAL_LINKS.tiktok} className='block hover:text-primary transition-colors'><SiTiktok size={24} /></Link>
-          </div>
+          {LINK_GROUPS.map((group) => (
+            <nav key={group.title} aria-label={group.title}>
+              <h2 className={COLUMN_TITLE_CLASS}>{group.title}</h2>
+              <ul className='flex flex-col gap-3'>
+                {group.links.map((link) => (
+                  <li key={link.href}>
+                    <Link href={link.href} className={LINK_CLASS}>
+                      {link.title}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          ))}
 
-          <span className='text-muted-foreground block text-center text-sm'>
-            © {new Date().getFullYear()} {NEXT_PUBLIC_SITE_NAME}, All rights reserved
+          <div>
+            <h2 className={COLUMN_TITLE_CLASS}>Signal</h2>
+            <ul className='grid w-fit grid-cols-6 gap-2 lg:grid-cols-3'>
+              {SOCIALS.map((social) => (
+                <li key={social.label}>
+                  <Link
+                    href={social.href}
+                    aria-label={social.label}
+                    className='cyber-chamfer-sm text-muted-foreground hover:text-neon hover:border-neon flex size-11 items-center justify-center rounded-md border transition-colors'
+                  >
+                    <social.icon aria-hidden='true' size={18} />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <div className='font-label text-muted-foreground mt-12 flex flex-col items-center justify-between gap-3 border-t pt-6 text-xs tracking-[0.15em] uppercase sm:flex-row'>
+          <span>
+            © {new Date().getFullYear()} {NEXT_PUBLIC_SITE_NAME}. All rights reserved.
+          </span>
+          <span className='flex items-center gap-2'>
+            <span aria-hidden='true' className='bg-neon shadow-neon-sm size-2 rounded-full' />
+            Next.js · Supabase · Stripe
           </span>
         </div>
       </div>

@@ -137,7 +137,7 @@ export function PendingInvitesList({ invites }: { invites: InviteRow[] }) {
               <Button
                 variant='outline'
                 size='sm'
-                className='focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-red-500 hover:text-red-600'
+                className='focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-destructive hover:text-destructive/80'
                 disabled={isAnyLoading(invite.id)}
                 onClick={() => deleteMutation.mutate({ inviteId: invite.id })}
               >

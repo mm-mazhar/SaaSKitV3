@@ -213,7 +213,7 @@ export function InviteMemberDialog({
               </div>
             )}
             {Boolean(error) && (
-              <p className='text-red-500 text-sm'>
+              <p className='text-destructive text-sm'>
                 {error instanceof Error ? error.message : 'An error occurred'}
               </p>
             )}

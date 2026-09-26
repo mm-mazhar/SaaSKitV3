@@ -30,9 +30,13 @@ const SiteLogo = () => {
           }}
         />
       </span>
-      <h1 className='truncate whitespace-nowrap text-base font-semibold tracking-tight text-foreground sm:text-lg lg:text-2xl'>
+      {/* A span, not a heading: the logo is in the header and footer of every page, which already have their own h1. */}
+      <span
+        data-slot='site-name'
+        className='font-heading truncate whitespace-nowrap text-base font-semibold tracking-tight text-foreground sm:text-lg lg:text-2xl'
+      >
         {NEXT_PUBLIC_SITE_NAME}
-      </h1>
+      </span>
     </Link>
   )
 }

@@ -90,7 +90,8 @@ export function Themetoggle({ isAuthenticated = false }: ThemeToggleProps) {
   }
 
   return (
-    <div className='flex items-center' suppressHydrationWarning>
+    // data-slot lets dark-only schemes (e.g. .theme-cyber) hide the toggle from CSS.
+    <div data-slot='theme-toggle' className='flex items-center' suppressHydrationWarning>
       {mounted ? (
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>

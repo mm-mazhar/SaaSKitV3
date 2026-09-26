@@ -35,23 +35,23 @@ type RecentActivityProps = {
 const CONFIG: Record<ActivityType, { icon: LucideIcon; color: string; bg: string }> = {
   user_join: { 
     icon: UserPlus, 
-    color: 'text-blue-500', 
-    bg: 'bg-blue-500/10' 
+    color: 'text-chart-1', 
+    bg: 'bg-chart-1/10' 
   },
   org_create: { 
     icon: Building2, 
-    color: 'text-orange-500', 
-    bg: 'bg-orange-500/10' 
+    color: 'text-chart-4', 
+    bg: 'bg-chart-4/10' 
   },
   sub_new: { 
     icon: CreditCard, 
-    color: 'text-emerald-500', 
-    bg: 'bg-emerald-500/10' 
+    color: 'text-success', 
+    bg: 'bg-success/10' 
   },
   workspace_create: { 
     icon: FolderPlus, 
-    color: 'text-purple-500', 
-    bg: 'bg-purple-500/10' 
+    color: 'text-chart-2', 
+    bg: 'bg-chart-2/10' 
   },
 };
 

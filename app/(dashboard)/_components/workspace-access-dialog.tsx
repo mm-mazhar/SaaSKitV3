@@ -102,7 +102,7 @@ export function WorkspaceAccessDialog({
         <form onSubmit={onSubmit}>
           <div className='py-2'>
             {loading && <p className='text-sm text-muted-foreground'>Loading…</p>}
-            {loadError && <p className='text-sm text-red-500'>{loadError}</p>}
+            {loadError && <p className='text-sm text-destructive'>{loadError}</p>}
             {!loading && !loadError && workspaces.length === 0 && (
               <p className='text-sm text-muted-foreground'>
                 There are no workspaces you can grant access to.

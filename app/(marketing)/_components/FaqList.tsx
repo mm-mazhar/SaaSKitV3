@@ -4,7 +4,7 @@
 
 // import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { MinusIcon, PlusIcon } from 'lucide-react'
 import { useState } from 'react'
 
@@ -125,77 +125,102 @@ export function FaqList() {
   }
 
   return (
-    <>
-      {/* Category Tabs */}
-      <div className='flex flex-col items-center space-y-8 px-4'>
-        <div className='mt-8 flex flex-wrap justify-center gap-2'>
-          {categories.map((category) => (
+    // Honour the OS reduced-motion setting for every animation below.
+    <MotionConfig reducedMotion='user'>
+      {/* Category filters: toggle buttons, so state is exposed via aria-pressed. */}
+      <div className='mt-8 flex flex-wrap justify-center gap-2 px-4'>
+        {categories.map((category) => {
+          const isActive = activeCategory === category.id
+          return (
             <button
               key={category.id}
+              type='button'
+              aria-pressed={isActive}
               onClick={() => setActiveCategory(category.id)}
               className={cn(
-                'rounded-full px-4 py-2 text-sm font-medium transition-all',
-                activeCategory === category.id
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                'cyber-chamfer-sm cyber-edge font-label h-11 rounded-md border px-4 text-xs tracking-[0.15em] uppercase transition-colors',
+                isActive
+                  ? 'border-neon bg-neon/10 text-neon [--edge:var(--neon,var(--primary))]'
+                  : 'text-muted-foreground hover:text-foreground'
               )}
             >
               {category.label}
             </button>
-          ))}
-        </div>
+          )
+        })}
       </div>
 
-      <div className='grid grid-cols-1 gap-6 mt-8 sm:grid-cols-2'>
+      <div className='mt-8 grid grid-cols-1 items-start gap-4 sm:grid-cols-2'>
         <AnimatePresence initial={false}>
-          {filteredFaqs.map((faq, index) => (
-            <motion.div
-              key={faq.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3, delay: index * 0.05 }}
-              className={cn(
-                'border-border h-fit overflow-hidden rounded-xl border',
-                expandedId === faq.id ? 'shadow-3xl bg-card/50' : 'bg-card/50'
-              )}
-              style={{ minHeight: '112px' }}
-            >
-              <button
-                onClick={() => toggleExpand(faq.id)}
-                className='flex w-full items-center justify-between p-6 text-left min-h-[112px]'
-              >
-                <h3 className='text-foreground text-lg font-medium'>
-                  {faq.question}
-                </h3>
-                <div className='ml-4 flex-shrink-0'>
-                  {expandedId === faq.id ? (
-                    <MinusIcon className='text-primary h-5 w-5' />
-                  ) : (
-                    <PlusIcon className='text-primary h-5 w-5' />
-                  )}
-                </div>
-              </button>
-
-              <AnimatePresence initial={false}>
-                {expandedId === faq.id && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className='overflow-hidden'
-                  >
-                    <div className='border-border border-t px-6 pt-2 pb-6'>
-                      <p className='text-muted-foreground'>{faq.answer}</p>
-                    </div>
-                  </motion.div>
+          {filteredFaqs.map((faq, index) => {
+            const isOpen = expandedId === faq.id
+            const panelId = `faq-panel-${faq.id}`
+            const buttonId = `faq-button-${faq.id}`
+            return (
+              <motion.div
+                key={faq.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3, delay: index * 0.05 }}
+                className={cn(
+                  'cyber-chamfer cyber-edge bg-card overflow-hidden rounded-xl border transition-colors',
+                  isOpen && 'border-neon/60 [--edge:color-mix(in_srgb,var(--neon,var(--primary))_60%,transparent)]'
                 )}
-              </AnimatePresence>
-            </motion.div>
-          ))}
+              >
+                {/* Accordion pattern: the heading wraps the button (a button may not contain a heading).
+                    Font/case reset: questions read as body copy, not display headings. */}
+                <h3 className='[font-family:inherit] tracking-normal normal-case'>
+                  <button
+                    id={buttonId}
+                    type='button'
+                    aria-expanded={isOpen}
+                    aria-controls={panelId}
+                    onClick={() => toggleExpand(faq.id)}
+                    className='flex min-h-[112px] w-full items-start gap-3 p-6 text-left'
+                  >
+                    <span aria-hidden='true' className='text-neon font-mono'>
+                      {'>'}
+                    </span>
+                    <span className='text-foreground flex-1 text-base font-medium'>
+                      {faq.question}
+                    </span>
+                    {isOpen ? (
+                      <MinusIcon aria-hidden='true' className='text-neon size-5 shrink-0 stroke-[1.5]' />
+                    ) : (
+                      <PlusIcon aria-hidden='true' className='text-neon size-5 shrink-0 stroke-[1.5]' />
+                    )}
+                  </button>
+                </h3>
+
+                <AnimatePresence initial={false}>
+                  {isOpen && (
+                    <motion.div
+                      id={panelId}
+                      role='region'
+                      aria-labelledby={buttonId}
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className='overflow-hidden'
+                    >
+                      <div className='border-t px-6 pt-4 pb-6 font-mono text-sm leading-relaxed'>
+                        <p className='text-muted-foreground'>
+                          <span aria-hidden='true' className='text-neon mr-2'>
+                            $
+                          </span>
+                          {faq.answer}
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            )
+          })}
         </AnimatePresence>
       </div>
-    </>
+    </MotionConfig>
   )
 }

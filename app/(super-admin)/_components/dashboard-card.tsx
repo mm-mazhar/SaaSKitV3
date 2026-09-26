@@ -2,6 +2,8 @@
 
 'use client';
 
+import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import { motion } from 'motion/react';
 import { TrendingDown, TrendingUp } from 'lucide-react';
 import { memo } from 'react';
@@ -18,28 +20,43 @@ interface DashboardCardProps {
   index: number;
 }
 
+/** HUD-style KPI readout: labelled value with an icon chip and a trend line. */
 export const DashboardCard = memo(({ stat, index }: DashboardCardProps) => {
+  const isPositive = stat.changeType === 'positive';
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1 }}
-      className="rounded-xl border bg-card p-6 shadow-sm"
+      className="h-full"
     >
-      <div className="flex items-center justify-between">
-        <div className={`rounded-lg p-3 ${stat.bgColor}`}>
-          {/* ✅ Render the passed JSX directly */}
-          {stat.icon}
+      <Card className="h-full gap-4 px-6">
+        <div className="flex items-center justify-between gap-3">
+          <span
+            className={cn(
+              'cyber-chamfer-sm flex size-11 shrink-0 items-center justify-center rounded-lg [&_svg]:stroke-[1.5]',
+              stat.bgColor
+            )}
+          >
+            {stat.icon}
+          </span>
+          <div
+            className={cn(
+              'flex min-w-0 items-center gap-1 text-sm font-medium',
+              isPositive ? 'text-success' : 'text-destructive'
+            )}
+            title={stat.change}
+          >
+            {isPositive ? <TrendingUp className="size-4 shrink-0" /> : <TrendingDown className="size-4 shrink-0" />}
+            <span className="truncate">{stat.change}</span>
+          </div>
         </div>
-        <div className={`flex items-center gap-1 text-sm font-medium ${stat.changeType === 'positive' ? 'text-green-500' : 'text-red-500'}`}>
-          {stat.changeType === 'positive' ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-          <span>{stat.change}</span>
+        <div>
+          <h3 className="font-label text-muted-foreground text-xs tracking-[0.15em] uppercase">{stat.title}</h3>
+          <p className="font-heading mt-2 text-3xl font-bold">{stat.value}</p>
         </div>
-      </div>
-      <div className="mt-4">
-        <h3 className="text-3xl font-bold">{stat.value}</h3>
-        <p className="text-sm text-muted-foreground font-medium">{stat.title}</p>
-      </div>
+      </Card>
     </motion.div>
   );
 });

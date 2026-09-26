@@ -20,7 +20,7 @@ export function LogoutButton() {
   return (
     <Button
       onClick={handleLogout}
-      variant='default'
+      variant='outline'
       size='sm'
       className='cursor-pointer'
     >

@@ -2,7 +2,7 @@
 
 'use client'
 
-import { DEFAULT_COLOR_SCHEME } from '@/lib/constants'
+import { resolveColorScheme } from '@/lib/constants'
 import { useEffect, useRef } from 'react'
 import { useTheme } from 'next-themes'
 
@@ -23,7 +23,7 @@ export function ThemeInitializer({
 
   useEffect(() => {
     const body = document.body
-    const desired = settings?.colorScheme ?? DEFAULT_COLOR_SCHEME
+    const desired = resolveColorScheme(settings?.colorScheme)
     const existing = Array.from(body.classList).find((c) => c.startsWith('theme-'))
     if (existing !== desired) {
       if (existing) body.classList.remove(existing)

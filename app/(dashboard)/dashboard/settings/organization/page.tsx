@@ -6,6 +6,7 @@ import { InviteMemberDialog } from '@/app/(dashboard)/_components/invite-member-
 import { WorkspaceAccessDialog } from '@/app/(dashboard)/_components/workspace-access-dialog'
 import { DeleteOrgButton } from '@/app/(dashboard)/_components/delete-org-button'
 import { getCachedUser } from '@/app/lib/supabase/server'
+import { TerminalEmptyState } from '@/components/cyber/terminal-empty-state'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import {
@@ -21,6 +22,7 @@ import { RemoveMemberButton } from '@/app/(dashboard)/_components/remove-member-
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { InvitationService } from '@/lib/services/invitation-service'
 import { getRPCCaller } from '@/lib/orpc/rsc-client'
+import { Building2 } from 'lucide-react'
 import { unstable_noStore as noStore } from 'next/cache'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
@@ -50,8 +52,14 @@ export default async function OrganizationSettingsPage() {
 
   if (!effectiveOrgId) {
     return (
-      <div className='flex h-[50vh] items-center justify-center'>
-        <p className='text-muted-foreground'>No organization found.</p>
+      <div className='p-4'>
+        <TerminalEmptyState
+          icon={Building2}
+          path='~/organizations'
+          readout='0 organizations found'
+          title='No organization found'
+          description='You are not a member of any organization yet.'
+        />
       </div>
     )
   }

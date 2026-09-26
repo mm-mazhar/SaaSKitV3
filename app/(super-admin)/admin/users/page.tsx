@@ -127,7 +127,7 @@ export default async function UsersPage(props: {
                       <TableCell className="md:px-16">
                         {/* Assuming active if they exist in DB. 
                             If you had an 'isActive' boolean, use that. */}
-                        <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                        <Badge variant="outline" className="bg-success/10 text-success border-success/20">
                           Active
                         </Badge>
                       </TableCell>

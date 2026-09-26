@@ -1,0 +1,633 @@
+/*
+ * Cyberpunk color scheme (`.theme-cyber` on <body>).
+ * Everything here is gated on the scheme class, so other schemes are unaffected.
+ * Theme-neutral roles it feeds (font-heading, shadow-neon, animate-*) live in globals.css @theme.
+ */
+
+/*
+ * Cyberpunk: dark-only, so there is no `.dark .theme-cyber` variant.
+ * Mapping to shadcn roles: design `accent` (neon green) → primary/ring,
+ * `accentSecondary`/`accentTertiary` → --neon-secondary/--neon-tertiary,
+ * shadcn `accent` (menu/hover surface) → neon-tinted card.
+ */
+.theme-cyber {
+  color-scheme: dark;
+  --radius: 0px;
+
+  --neon: #00ff88;
+  --neon-secondary: #ff00ff;
+  --neon-tertiary: #00d4ff;
+
+  --background: #0a0a0f;
+  --foreground: #e0e0e0;
+  --card: #12121a;
+  --card-foreground: #e0e0e0;
+  --popover: #12121a;
+  --popover-foreground: #e0e0e0;
+  --primary: var(--neon);
+  --primary-foreground: #0a0a0f;
+  --secondary: #1c1c2e;
+  --secondary-foreground: #e0e0e0;
+  --muted: #1c1c2e;
+  /* Spec is #6b7280 (≈4.2:1 on background); lifted to clear WCAG AA on muted surfaces at 14px. */
+  --muted-foreground: #858b9b;
+  --accent: color-mix(in srgb, var(--neon) 12%, #12121a);
+  --accent-foreground: var(--neon);
+  --destructive: #ff3366;
+  --success: var(--neon);
+  --warning: #ffd000;
+  --info: var(--neon-tertiary);
+  --border: #2a2a3a;
+  /* shadcn uses --input as the input border colour; the #12121a field fill is applied per component. */
+  --input: #2a2a3a;
+  --ring: var(--neon);
+
+  --chart-1: var(--neon);
+  --chart-2: var(--neon-secondary);
+  --chart-3: var(--neon-tertiary);
+  --chart-4: #ffd000;
+  /* Not #ff3366: that's --destructive, and a category must never read as an error. */
+  --chart-5: #ff8a00;
+
+  --sidebar: #0a0a0f;
+  --sidebar-foreground: #e0e0e0;
+  --sidebar-primary: var(--neon);
+  --sidebar-primary-foreground: #0a0a0f;
+  --sidebar-accent: color-mix(in srgb, var(--neon) 12%, #12121a);
+  --sidebar-accent-foreground: var(--neon);
+  --sidebar-border: #2a2a3a;
+  --sidebar-ring: var(--neon);
+
+  --glow-neon-sm: 0 0 3px var(--neon), 0 0 6px color-mix(in srgb, var(--neon) 19%, transparent);
+  --glow-neon: 0 0 5px var(--neon), 0 0 10px color-mix(in srgb, var(--neon) 25%, transparent);
+  --glow-neon-lg:
+    0 0 10px var(--neon), 0 0 20px color-mix(in srgb, var(--neon) 38%, transparent),
+    0 0 40px color-mix(in srgb, var(--neon) 19%, transparent);
+  --glow-neon-secondary:
+    0 0 5px var(--neon-secondary), 0 0 20px color-mix(in srgb, var(--neon-secondary) 38%, transparent);
+  --glow-neon-tertiary:
+    0 0 5px var(--neon-tertiary), 0 0 20px color-mix(in srgb, var(--neon-tertiary) 38%, transparent);
+
+  --chamfer: 10px;
+  --chamfer-sm: 6px;
+  --chamfer-xs: 4px;
+  /* Spec is 0.3; 0.2 keeps 14px body copy legible under the stripes. */
+  --scanline-alpha: 0.2;
+}
+
+/*
+ * Unlayered on purpose: next/font's font-family and --font-display classes sit on the same
+ * <body> and are unlayered, so these must win on specificity (body.theme-cyber > .class).
+ */
+body.theme-cyber {
+  --font-display: var(--font-cyber-display), var(--font-cyber-label), monospace;
+  --font-mono: var(--font-cyber-mono), 'Fira Code', Consolas, monospace;
+  --label-face: var(--font-cyber-label), monospace;
+  font-family: var(--font-mono);
+  letter-spacing: 0.025em;
+}
+
+/* Keeps overscroll / pre-paint areas in the void instead of the light-mode html background. */
+html:has(> body.theme-cyber) {
+  color-scheme: dark;
+  background-color: #0a0a0f;
+}
+
+/* CRT scanlines over the whole viewport. */
+body.theme-cyber::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0 2px,
+    rgb(0 0 0 / var(--scanline-alpha)) 2px 4px
+  );
+}
+
+@media print {
+  body.theme-cyber::after {
+    display: none;
+  }
+}
+
+/* Dark-only scheme: a light/dark switch would be a no-op. */
+.theme-cyber [data-slot='theme-toggle'] {
+  display: none;
+}
+
+@layer base {
+  /* In the base layer so per-element tracking/case utilities still win. */
+  .theme-cyber :is(h1, h2, h3, [data-slot='site-name']) {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+}
+
+/*
+ * shadcn primitive retrofit.
+ *
+ * Targets `data-slot` / `data-variant` hooks, so primitives stay theme-agnostic and
+ * dashboards pick this up without call-site changes. Lives in the utilities layer with
+ * a `.theme-cyber` prefix: that out-specifies the primitives' own base utilities
+ * (e.g. `rounded-full`, `shadow-xs`) for the handful of properties touched here.
+ *
+ * Constraint that shapes most of this: clip-path clips everything outside the border
+ * box, including outer box-shadows. Focus rings and glows on chamfered elements are
+ * therefore drawn inset; outer glows are reserved for unclipped elements (sheets) and
+ * for components/cyber wrappers.
+ */
+/*
+ * Chamfer geometry and corner strokes. In the components layer so any utility (a
+ * call-site `[--edge:…]`, `[--chamfer-size:…]`, `[clip-path:none]`) overrides it
+ * regardless of specificity. The knobs are set on each element, not inherited, so
+ * values never leak from a panel into the controls nested inside it.
+ */
+@layer components {
+  .theme-cyber
+    :where(
+      .cyber-chamfer,
+      .cyber-chamfer-sm,
+      [data-slot='card'],
+      [data-slot='dialog-content'],
+      [data-slot='alert-dialog-content'],
+      [data-slot='button']:not([data-variant='link']),
+      [data-slot='input'],
+      [data-slot='select-trigger'],
+      [data-slot='select-content'],
+      [data-slot='dropdown-menu-content'],
+      [data-slot='dropdown-menu-sub-content'],
+      [data-slot='tooltip-content'],
+      [data-slot='tabs-list'],
+      [data-slot='badge'],
+      [data-slot='avatar']
+    ) {
+    --chamfer-size: var(--chamfer);
+    clip-path: polygon(
+      0 var(--chamfer-size),
+      var(--chamfer-size) 0,
+      calc(100% - var(--chamfer-size)) 0,
+      100% var(--chamfer-size),
+      100% calc(100% - var(--chamfer-size)),
+      calc(100% - var(--chamfer-size)) 100%,
+      var(--chamfer-size) 100%,
+      0 calc(100% - var(--chamfer-size))
+    );
+  }
+
+  .theme-cyber
+    :where(
+      .cyber-chamfer-sm,
+      [data-slot='button'],
+      [data-slot='input'],
+      [data-slot='select-trigger'],
+      [data-slot='select-content'],
+      [data-slot='dropdown-menu-content'],
+      [data-slot='dropdown-menu-sub-content'],
+      [data-slot='tooltip-content'],
+      [data-slot='tabs-list'],
+      [data-slot='avatar']
+    ) {
+    --chamfer-size: var(--chamfer-sm);
+  }
+
+  .theme-cyber :where([data-slot='badge']) {
+    --chamfer-size: var(--chamfer-xs);
+  }
+
+  /*
+   * Diagonal edge strokes. The clip cuts the border off at each corner; these four
+   * corner gradients redraw a line (`--edge-width`, match the border width) along each
+   * cut so bordered panels read as closed. `--edge` is the stroke colour: states that
+   * change the border colour change `--edge` too, and call sites with a custom border
+   * colour can pass `[--edge:<color>]`. For the generic helpers this is opt-in via
+   * `.cyber-edge`, since an unbordered chamfered fill needs no stroke.
+   */
+  .theme-cyber
+    :where(
+      .cyber-edge,
+      [data-slot='card'],
+      [data-slot='dialog-content'],
+      [data-slot='alert-dialog-content'],
+      [data-slot='button'][data-variant='outline'],
+      [data-slot='button'][data-variant='secondary'],
+      [data-slot='button'][data-variant='destructive'],
+      [data-slot='input'],
+      [data-slot='select-trigger'],
+      [data-slot='select-content'],
+      [data-slot='dropdown-menu-content'],
+      [data-slot='dropdown-menu-sub-content'],
+      [data-slot='tooltip-content'],
+      [data-slot='tabs-list']
+    ) {
+    --edge: var(--border);
+    --edge-width: 1px;
+    --edge-offset: calc(var(--chamfer-size) * 0.7071 + var(--edge-width));
+    background-image:
+      linear-gradient(135deg, var(--edge) 0 var(--edge-offset), transparent 0),
+      linear-gradient(225deg, var(--edge) 0 var(--edge-offset), transparent 0),
+      linear-gradient(315deg, var(--edge) 0 var(--edge-offset), transparent 0),
+      linear-gradient(45deg, var(--edge) 0 var(--edge-offset), transparent 0);
+    background-position:
+      top left,
+      top right,
+      bottom right,
+      bottom left;
+    background-size: calc(var(--chamfer-size) + 2px) calc(var(--chamfer-size) + 2px);
+    background-repeat: no-repeat;
+    background-origin: border-box;
+  }
+}
+
+@layer utilities {
+  /* --- Buttons --------------------------------------------------------------------- */
+
+  .theme-cyber [data-slot='button'] {
+    font-family: var(--font-label);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .theme-cyber [data-slot='button'] svg {
+    stroke-width: 1.5;
+  }
+
+  /* Solid neon CTA: brightens rather than dims on hover. */
+  .theme-cyber [data-slot='button'][data-variant='default']:hover {
+    background-color: var(--primary);
+    filter: brightness(1.1);
+    box-shadow: inset 0 0 12px color-mix(in srgb, #fff 25%, transparent);
+  }
+
+  .theme-cyber [data-slot='button'][data-variant='outline'] {
+    background-color: transparent;
+    box-shadow: none;
+  }
+
+  .theme-cyber [data-slot='button'][data-variant='outline']:hover {
+    --edge: var(--neon);
+    border-color: var(--neon);
+    color: var(--neon);
+    background-color: color-mix(in srgb, var(--neon) 8%, transparent);
+    box-shadow: inset 0 0 12px color-mix(in srgb, var(--neon) 25%, transparent);
+  }
+
+  .theme-cyber [data-slot='button'][data-variant='secondary'] {
+    --edge: var(--neon-secondary);
+    border: 1px solid var(--neon-secondary);
+    background-color: transparent;
+    color: var(--neon-secondary);
+  }
+
+  .theme-cyber [data-slot='button'][data-variant='secondary']:hover {
+    background-color: var(--neon-secondary);
+    color: var(--background);
+  }
+
+  /* Outlined until hover: a solid pink-red block reads louder than the primary CTA. */
+  .theme-cyber [data-slot='button'][data-variant='destructive'] {
+    --edge: var(--destructive);
+    border: 1px solid var(--destructive);
+    background-color: color-mix(in srgb, var(--destructive) 10%, transparent);
+    color: var(--destructive);
+  }
+
+  .theme-cyber [data-slot='button'][data-variant='destructive']:hover {
+    background-color: var(--destructive);
+    color: var(--background);
+  }
+
+  .theme-cyber [data-slot='button'][data-variant='link'] {
+    text-transform: none;
+    letter-spacing: 0.025em;
+  }
+
+  /* --- Form fields ----------------------------------------------------------------- */
+
+  .theme-cyber :is([data-slot='input'], [data-slot='select-trigger']) {
+    background-color: var(--card);
+    box-shadow: none;
+    caret-color: var(--neon);
+    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .theme-cyber [data-slot='input'] {
+    color: var(--neon);
+  }
+
+  .theme-cyber [data-slot='label'] {
+    font-family: var(--font-label);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  /* --- Surfaces -------------------------------------------------------------------- */
+
+  .theme-cyber [data-slot='card'] {
+    box-shadow: none;
+  }
+
+  .theme-cyber :is([data-slot='card-title'], [data-slot='sidebar-group-label']) {
+    font-family: var(--font-label);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  /* Interactive cards (the card is, or sits directly in, a link/button). */
+  .theme-cyber :is(a, button)[data-slot='card'],
+  .theme-cyber :is(a, button) > [data-slot='card'] {
+    transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .theme-cyber :is(a, button)[data-slot='card']:hover,
+  .theme-cyber :is(a, button):hover > [data-slot='card'] {
+    --edge: var(--neon);
+    border-color: var(--neon);
+    transform: translateY(-1px);
+    box-shadow: inset 0 0 24px color-mix(in srgb, var(--neon) 12%, transparent);
+  }
+
+  .theme-cyber :is([data-slot='dialog-content'], [data-slot='alert-dialog-content']) {
+    --edge: color-mix(in srgb, var(--neon) 35%, transparent);
+    border-color: var(--edge);
+    box-shadow: inset 0 0 40px color-mix(in srgb, var(--neon) 6%, transparent);
+  }
+
+  /* Edge-docked, so not chamfered; its outer glow survives because nothing clips it. */
+  .theme-cyber [data-slot='sheet-content'] {
+    border-color: color-mix(in srgb, var(--neon) 30%, transparent);
+    box-shadow: 0 0 24px color-mix(in srgb, var(--neon) 10%, transparent);
+  }
+
+  /* --- Overlays -------------------------------------------------------------------- */
+
+  .theme-cyber
+    :is(
+      [data-slot='select-content'],
+      [data-slot='dropdown-menu-content'],
+      [data-slot='dropdown-menu-sub-content']
+    ) {
+    --edge: color-mix(in srgb, var(--neon) 30%, transparent);
+    border-color: var(--edge);
+    box-shadow: inset 0 0 24px color-mix(in srgb, var(--neon) 6%, transparent);
+  }
+
+  /* Highlighted row gets a neon rail on top of the tinted accent fill. */
+  .theme-cyber
+    :is(
+        [data-slot='select-item'],
+        [data-slot='dropdown-menu-item'],
+        [data-slot='dropdown-menu-checkbox-item'],
+        [data-slot='dropdown-menu-radio-item'],
+        [data-slot='dropdown-menu-sub-trigger']
+      )[data-highlighted] {
+    box-shadow: inset 2px 0 0 var(--neon);
+  }
+
+  .theme-cyber [data-slot='tooltip-content'] {
+    --edge: color-mix(in srgb, var(--neon) 40%, transparent);
+    border: 1px solid var(--edge);
+    background-color: var(--card);
+    color: var(--neon);
+    font-family: var(--font-label);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  /* The arrow sits half outside the box, so the chamfer clip would leave a stray nub. */
+  .theme-cyber [data-slot='tooltip-arrow'] {
+    display: none;
+  }
+
+  /* --- Data display ---------------------------------------------------------------- */
+
+  .theme-cyber [data-slot='badge'] {
+    border-radius: 0;
+    font-family: var(--font-label);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  .theme-cyber :is([data-slot='avatar'], [data-slot='avatar-fallback']) {
+    border-radius: 0;
+  }
+
+  .theme-cyber [data-slot='tabs-list'] {
+    border: 1px solid var(--edge);
+    background-color: var(--background);
+  }
+
+  .theme-cyber [data-slot='tabs-trigger'] {
+    border-radius: 0;
+    font-family: var(--font-label);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  .theme-cyber [data-slot='tabs-trigger'][data-state='active'] {
+    border-color: transparent;
+    background-color: var(--accent);
+    color: var(--neon);
+    box-shadow: inset 0 -2px 0 var(--neon);
+  }
+
+  .theme-cyber [data-slot='table-head'] {
+    color: var(--muted-foreground);
+    font-family: var(--font-label);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+  }
+
+  .theme-cyber [data-slot='table-row']:hover > [data-slot='table-cell']:first-child {
+    box-shadow: inset 2px 0 0 var(--neon);
+  }
+
+  .theme-cyber [data-slot='sidebar-menu-button'][data-active='true'] {
+    box-shadow: inset 2px 0 0 var(--neon);
+  }
+
+  /*
+   * Inset focus. Outer rings would be clipped away, so draw a neon hairline plus a
+   * dark separator band inside the edge; the band keeps it visible on filled neon buttons.
+   * Kept last in the layer so hover rules of equal weight cannot mask focus.
+   */
+  .theme-cyber
+    :is(
+      [data-slot='button']:not([data-variant='link']),
+      [data-slot='input'],
+      [data-slot='select-trigger'],
+      [data-slot='tabs-trigger']
+    ):focus-visible {
+    --edge: var(--ring);
+    outline: none;
+    box-shadow:
+      inset 0 0 0 1px var(--ring),
+      inset 0 0 0 3px var(--background),
+      inset 0 0 12px color-mix(in srgb, var(--ring) 35%, transparent);
+  }
+
+  .theme-cyber :is([data-slot='input'], [data-slot='select-trigger'])[aria-invalid='true'] {
+    --edge: var(--destructive);
+  }
+}
+
+/*
+ * components/cyber effects. Each component renders plain, theme-neutral markup;
+ * everything here only switches on under `.theme-cyber`.
+ */
+
+/* Decoration that only makes sense on the dark void (e.g. NoiseOverlay). */
+body:not(.theme-cyber) .cyber-only {
+  display: none;
+}
+
+@layer components {
+  /*
+   * GlitchHeading: static chromatic aberration, plus a slice/skew burst in the last
+   * ~10% of a long cycle so it reads as an occasional signal drop, not constant jitter.
+   * The slices are CSS copies of `data-text`; the `/ ''` alt text keeps them out of
+   * the accessibility tree where supported.
+   */
+  .theme-cyber .cyber-glitch {
+    position: relative;
+    text-shadow:
+      -1px 0 color-mix(in srgb, var(--neon-secondary) 70%, transparent),
+      1px 0 color-mix(in srgb, var(--neon-tertiary) 70%, transparent),
+      0 0 10px color-mix(in srgb, var(--neon) 35%, transparent);
+    animation: cyber-glitch-skew 7s steps(1) infinite;
+  }
+
+  .theme-cyber .cyber-glitch::before,
+  .theme-cyber .cyber-glitch::after {
+    content: attr(data-text);
+    content: attr(data-text) / '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    text-shadow: none;
+    clip-path: inset(0 0 100% 0);
+  }
+
+  .theme-cyber .cyber-glitch::before {
+    color: var(--neon-secondary);
+    transform: translateX(-3px);
+    animation: cyber-glitch-slice-a 7s steps(1) infinite;
+  }
+
+  .theme-cyber .cyber-glitch::after {
+    color: var(--neon-tertiary);
+    transform: translateX(3px);
+    animation: cyber-glitch-slice-b 7s steps(1) infinite;
+  }
+}
+
+@layer utilities {
+  /*
+   * CyberButton glow. Filters apply to the rendered result of the unclipped button,
+   * so the drop-shadow traces its chamfered plate.
+   */
+  .theme-cyber [data-slot='cyber-button'] {
+    --glow: var(--neon);
+  }
+
+  .theme-cyber [data-slot='cyber-button'][data-variant='secondary'] {
+    --glow: var(--neon-secondary);
+  }
+
+  .theme-cyber [data-slot='cyber-button']:is([data-variant='primary'], [data-variant='secondary'], [data-variant='glitch']) {
+    filter: drop-shadow(0 0 2px color-mix(in srgb, var(--glow) 50%, transparent));
+  }
+
+  .theme-cyber [data-slot='cyber-button']:not([data-variant='ghost']):is(:hover, :focus-visible) {
+    filter: drop-shadow(0 0 3px var(--glow)) drop-shadow(0 0 12px color-mix(in srgb, var(--glow) 45%, transparent));
+  }
+
+  .theme-cyber [data-slot='cyber-button'][data-variant='glitch'] {
+    text-shadow:
+      -1px 0 var(--neon-secondary),
+      1px 0 var(--neon-tertiary);
+  }
+
+  .theme-cyber [data-slot='cyber-button'][data-variant='glitch']:is(:hover, :focus-visible) {
+    filter: brightness(1.1) drop-shadow(0 0 3px var(--glow))
+      drop-shadow(0 0 12px color-mix(in srgb, var(--glow) 45%, transparent));
+    animation: rgb-shift 0.8s steps(2) infinite;
+  }
+
+  /* IconFrame: icons light up when the frame, or a `group` around it, is hovered. */
+  .theme-cyber [data-slot='icon-frame'] svg {
+    transition: filter 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .theme-cyber :is([data-slot='icon-frame']:hover, .group:hover [data-slot='icon-frame']) svg {
+    filter: drop-shadow(0 0 4px currentColor);
+  }
+}
+
+@keyframes cyber-glitch-skew {
+  0%,
+  95%,
+  100% {
+    transform: none;
+  }
+  91% {
+    transform: skewX(-6deg) translateX(2px);
+  }
+  93% {
+    transform: skewX(4deg) translateX(-2px);
+  }
+  97% {
+    transform: translateX(1px);
+  }
+  98% {
+    transform: none;
+  }
+}
+
+@keyframes cyber-glitch-slice-a {
+  0%,
+  96%,
+  100% {
+    clip-path: inset(0 0 100% 0);
+  }
+  91% {
+    clip-path: inset(18% 0 62% 0);
+  }
+  93% {
+    clip-path: inset(64% 0 14% 0);
+  }
+  95% {
+    clip-path: inset(40% 0 44% 0);
+  }
+}
+
+@keyframes cyber-glitch-slice-b {
+  0%,
+  97%,
+  100% {
+    clip-path: inset(0 0 100% 0);
+  }
+  92% {
+    clip-path: inset(72% 0 8% 0);
+  }
+  94% {
+    clip-path: inset(8% 0 78% 0);
+  }
+  96% {
+    clip-path: inset(50% 0 30% 0);
+  }
+}
+
+/* Keep the static chromatic offset; drop everything that moves. */
+@media (prefers-reduced-motion: reduce) {
+  .theme-cyber .cyber-glitch,
+  .theme-cyber .cyber-glitch::before,
+  .theme-cyber .cyber-glitch::after,
+  .theme-cyber [data-slot='cyber-button'] {
+    animation: none;
+  }
+}
